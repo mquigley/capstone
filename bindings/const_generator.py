@@ -119,7 +119,7 @@ def gen(lang):
                             # ocaml variable has _ as prefix
                             if rhs[0].isalpha():
                                 rhs = '_' + rhs
-
+                    print("Line f[0]=%s rhs=%s" % (f[0], rhs))
                     outfile.write((templ['line_format'] %(f[0].strip(), rhs)).encode("utf-8"))
 
         outfile.write((templ['footer']).encode("utf-8"))

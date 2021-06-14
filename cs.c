@@ -411,7 +411,7 @@ cs_err CAPSTONE_API cs_open(cs_arch arch, cs_mode mode, csh *handle)
 		}
 
 		*handle = (uintptr_t)ud;
-
+		printf("cs_open() Created handle %zd or %p which is of size %zd\n", *handle, handle, sizeof(uintptr_t));
 		return CS_ERR_OK;
 	} else {
 		*handle = 0;
@@ -533,10 +533,11 @@ CAPSTONE_EXPORT
 cs_err CAPSTONE_API cs_option(csh ud, cs_opt_type type, size_t value)
 {
 	struct cs_struct *handle;
-
+	printf("Made it into cs_option handle=%zd 0x%zx %d %zd\n", ud, ud, type, value);
 	// cs_option() can be called with NULL handle just for CS_OPT_MEM
 	// This is supposed to be executed before all other APIs (even cs_open())
 	if (type == CS_OPT_MEM) {
+		printf("cs_option 222\n");
 		cs_opt_mem *mem = (cs_opt_mem *)value;
 
 		cs_mem_malloc = mem->malloc;
@@ -549,15 +550,19 @@ cs_err CAPSTONE_API cs_option(csh ud, cs_opt_type type, size_t value)
 	}
 
 	handle = (struct cs_struct *)(uintptr_t)ud;
+	printf("cs_option 2\n");
 	if (!handle)
 		return CS_ERR_CSH;
+	printf("cs_option 3\n");
 
 	switch(type) {
 		default:
 			break;
 		case CS_OPT_DETAIL:
-			handle->detail = (cs_opt_value)value;
-			return CS_ERR_OK;
+		    printf("cs_option OPT_DETAIL 1\n");
+		    handle->detail = (cs_opt_value)value;
+		    printf("cs_option OPT_DETAIL 2\n");
+		    return CS_ERR_OK;
 		case CS_OPT_SKIPDATA:
 			handle->skipdata = (value == CS_OPT_ON);
 			if (handle->skipdata) {
@@ -578,6 +583,8 @@ cs_err CAPSTONE_API cs_option(csh ud, cs_opt_type type, size_t value)
 			}
 			break;
 	}
+
+	printf("cs_option 4\n");
 
 	return cs_arch_option[handle->arch](handle, type, value);
 }
