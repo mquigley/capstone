@@ -84,7 +84,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>C:\Program Files\Java\jdk-10.0.2\include\win32;C:\Program Files\Java\jdk-10.0.2\include;$(IncludePath)</IncludePath>
-    <LibraryPath>E:\dev\disasm\capstone\msvc\x64\Debug;$(LibraryPath)</LibraryPath>
+    <LibraryPath>${ProjectDir}\..\x64\Debug\;E:\dev\capstone_github\msvc\x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>C:\Program Files\Java\jdk-10.0.2\include\win32;C:\Program Files\Java\jdk-10.0.2\include;$(IncludePath)</IncludePath>

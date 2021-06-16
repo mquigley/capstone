@@ -32,7 +32,6 @@ public class X86 {
     // {
     public int reg;
     public long imm;
-    public double fp;
     public OperandMem mem;
     // }
 
@@ -63,7 +62,6 @@ public class X86 {
               "type=" + stype +
               ", reg=" + (cs == null ? reg : cs.cs_reg_name(cs.handle, reg)) +
               ", imm=" + imm +
-              ", fp=" + fp +
               ", mem=" + (mem == null ? "null" : mem.toString(cs)) +
               ", size=" + size +
               ", avx_bcast=" + avx_bcast +
