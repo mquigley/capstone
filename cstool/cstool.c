@@ -257,12 +257,16 @@ static void print_details(csh handle, cs_arch arch, cs_mode md, cs_insn *ins)
 		case CS_ARCH_M680X:
 			print_insn_detail_m680x(handle, ins);
 			break;
+#ifdef CAPSTONE_HAS_EVM
 		case CS_ARCH_EVM:
 			print_insn_detail_evm(handle, ins);
 			break;
+#endif
+#ifdef CAPSTONE_HAS_MOS65XX
 		case CS_ARCH_MOS65XX:
 			print_insn_detail_mos65xx(handle, ins);
 			break;
+#endif
 		default: break;
 	}
 
