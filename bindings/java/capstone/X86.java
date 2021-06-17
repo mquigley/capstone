@@ -11,6 +11,7 @@ import java.util.Arrays;
 
 import static capstone.X86_const.*;
 
+// TODO - THIS IS LEGACY JAVA BINDING VERSION
 public class X86 {
 
   public static class MemType extends Structure {

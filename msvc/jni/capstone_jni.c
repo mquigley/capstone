@@ -639,6 +639,56 @@ JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1reg_name
     return result;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
+#define FINDCLASS(variable, classname) jclass variable = (*env)->FindClass(env, classname); \
+    if (!variable) { printf("Failed to load " ## classname); goto ERROR; }
+// constructor = (*env)->GetMethodID(env, jclass_cs_insn, "<init>", "()V");	
+#define GETMETHOD(variable, jclass, name, signature) jmethodID variable = (*env)->GetMethodID(env, jclass, name, signature); \
+    if (!variable) { printf("Failed to find method " ## name ## signature); goto ERROR; }
+// javaObject = (*env)->NewObject(env, jclass_cs_insn, constructor);
+#define NEWOBJECT(variable, jclass, constructor, ...) jobject variable = (*env)->NewObject(env, jclass, constructor, __VA_ARGS__); \
+    if (!variable) { printf("Failed to allocate object jclass" ); goto ERROR; }
+
+// jfieldID field_d_regs_read = (*env)->GetFieldID(env, jclass_cs_detail, "regs_read", "[S");
+#define GETFIELD(variable, jclass, name, signature)  jfieldID variable = (*env)->GetFieldID(env, jclass, name, signature); \
+    if (!variable) { printf("Failed to find field " ## name ## signature); goto ERROR; }
+
+
+
+
+static jbyteArray allocateJByteArray(JNIEnv* env, const uint8_t* src, const int size) {
+    jbyteArray retVal = (*env)->NewByteArray(env, size);
+    (*env)->SetByteArrayRegion(env, retVal, 0, size, src);
+    //jbyte* buf = (*env)->GetByteArrayElements(env, retVal, NULL);
+    //memcpy(buf, src, size);
+    printf("    allocateJByteArray: Created java byte array: .\n");
+    //(*env)->ReleaseByteArrayElements(env, retVal, buf, 0);
+
+    return retVal;
+}
+
+
+
+
+
 /*
 * Class:     capstone_Capstone
 * Method:    cs_disasm
@@ -652,7 +702,8 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
     if (code_len < 0 || count < 0)
 	return 0;
 
-    printf("Called disasm... handle %llx\n", handle);
+    struct cs_struct* ud = (cs_struct*)handle;
+    printf("Called disasm... handle %llx ud->mode %d\n", handle, ud->mode);
 
     // cs_err CAPSTONE_API cs_option(csh ud, cs_opt_type type, size_t value)
     printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
@@ -660,12 +711,12 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
     // test();
 
     jbyte* codeBytes = (*env)->GetByteArrayElements(env, code, NULL);
-    printf("here\n");
+ //   printf("here\n");
 
-    for (int i = 0; i < code_len; i++) {
-	printf("0x%x ", codeBytes[i]);
-    }
-    printf("\n");
+ //   for (int i = 0; i < code_len; i++) {
+	//printf("0x%x ", codeBytes[i]);
+ //   }
+ //   printf("\n");
 
     cs_insn *insn = NULL; 
     
@@ -677,326 +728,354 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
     printf("Disasm was count=%zd\n", actualCount);
 
 
-    if (actualCount) {
-	long j;
-
+    if (!actualCount) {
 	printf("****************\n");
-	printf("Disasm (count %zd):\n", actualCount);
+	printf("ERROR: Failed to disasm given code!\n");
+	goto ERROR;
+    }
 
-	for (j = 0; j < actualCount; j++) {
-	    cs_insn* ci = &insn[j];
-	    printf("%d 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
-	    print_insn_detail(handle, CS_MODE_16, &insn[j]);
+    long j;
+
+    printf("****************\n");
+    printf("Disasm (count %zd):\n", actualCount);
+
+    for (j = 0; j < actualCount; j++) {
+	cs_insn* ci = &insn[j];
+	printf("%d 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
+	// print_insn_detail(handle, CS_MODE_16, &insn[j]);
 
 
 	    
 
-	 //   Type Signature
-		//Java Type
-		//Z		boolean
-		//B		byte
-		//C		char
-		//S		short
-		//I		int
-		//J		long
-		//F		float
-		//D		double
-		//L fully - qualified - class;	    fully - qualified - class
-		//[type		type[]
-		//(arg - types) ret - type		method type
-		//V is void return type, so you could have()V
+	//   Type Signature
+	    //Java Type
+	    //Z		boolean
+	    //B		byte
+	    //C		char
+	    //S		short
+	    //I		int
+	    //J		long
+	    //F		float
+	    //D		double
+	    //L fully - qualified - class;	    fully - qualified - class
+	    //[type		type[]
+	    //(arg - types) ret - type		method type
+	    //V is void return type, so you could have()V
 
-	    // Convert instruction
-	    {
-		jstring    filename = NULL;
-		jclass    jclass_cs_insn = NULL;
-		jboolean  returnValue = JNI_FALSE;
-		jmethodID  constructor = NULL;
-		jmethodID  existsMethod = NULL;
-		jobject    javaObject = NULL;
-		jclass    jclass_cs_detail = NULL;
-		jobject    detailObject = NULL;
+	// Convert instruction
+	jstring    filename = NULL;
+	jboolean  returnValue = JNI_FALSE;
+	jobject    detailObject = NULL;
 
-		jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
-		constructor = (*env)->GetMethodID(env, jclass_cs_insn, "<init>", "()V");	
-		javaObject = (*env)->NewObject(env, jclass_cs_insn, constructor);
+	// jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
+	FINDCLASS(jclass_cs_insn, "capstone/Capstone$CsInsn")
+	GETMETHOD(constructor, jclass_cs_insn, "<init>", "(Lcapstone/Capstone;)V");
+	NEWOBJECT(csInsnObject, jclass_cs_insn, constructor, thisObj)
 
+	//public int id;
+	//public long address;
+	//public short size;
+	//public byte[] bytes;
+	//public String mnemonic;
+	//public String op_str;
+	//public _cs_detail cs_detail;
 
-		//public int id;
-		//public long address;
-		//public short size;
-		//public byte[] bytes;
-		//public String mnemonic;
-		//public String op_str;
-		//public _cs_detail cs_detail;
+	GETFIELD(field_id, jclass_cs_insn, "id", "I")
+	GETFIELD(field_address, jclass_cs_insn, "address", "J")
+	GETFIELD(field_size, jclass_cs_insn, "size", "S")
+	GETFIELD(field_bytes, jclass_cs_insn, "bytes", "[B")
+	GETFIELD(field_mnemonic, jclass_cs_insn, "mnemonic", "Ljava/lang/String;")
+	GETFIELD(field_op_str, jclass_cs_insn, "op_str", "Ljava/lang/String;")
+	GETFIELD(field_detail, jclass_cs_insn, "cs_detail", "Lcapstone/Capstone$CsDetail;")
 
-		jfieldID field_id = (*env)->GetFieldID(env, jclass_cs_insn, "id", "I");
-		jfieldID field_address = (*env)->GetFieldID(env, jclass_cs_insn, "address", "J");
-		jfieldID field_size = (*env)->GetFieldID(env, jclass_cs_insn, "size", "S");
-		jfieldID field_bytes = (*env)->GetFieldID(env, jclass_cs_insn, "bytes", "[B");
-		jfieldID field_mnemonic = (*env)->GetFieldID(env, jclass_cs_insn, "mnemonic", "Ljava/lang/String;");
-		jfieldID field_op_str = (*env)->GetFieldID(env, jclass_cs_insn, "op_str", "Ljava/lang/String;");
-		jfieldID field_detail = (*env)->GetFieldID(env, jclass_cs_insn, "cs_detail", "Lcapstone/Capstone$_cs_detail;");
+	(*env)->SetIntField(env, csInsnObject, field_id, ci->id);
+	(*env)->SetLongField(env, csInsnObject, field_address, ci->address);
+	(*env)->SetShortField(env, csInsnObject, field_size, ci->size);
 
-		(*env)->SetIntField(env, javaObject, field_id, ci->id);
-		(*env)->SetLongField(env, javaObject, field_address, ci->address);
-		(*env)->SetShortField(env, javaObject, field_size, ci->size);
+	// TODO - ALLOCATE ARRAY
+	printf("HERE a");
+	jbyteArray bytesArray = allocateJByteArray(env, ci->bytes, ci->size);
+	(*env)->SetObjectField(env, csInsnObject, field_bytes, bytesArray);
+	printf("HERE z");
 
-		jbyteArray jary = (jintArray)(*env)->GetObjectField(env, javaObject, field_bytes);
-		(*env)->SetByteArrayRegion(env, jary, 0, ci->size, ci->bytes);
+	jstring mnem = (*env)->NewStringUTF(env, ci->mnemonic);
+	(*env)->SetObjectField(env, csInsnObject, field_mnemonic, mnem);
 
-		jstring mnem = (*env)->NewStringUTF(env, ci->mnemonic);
-		(*env)->SetObjectField(env, javaObject, field_mnemonic, mnem);
+	jstring ops = (*env)->NewStringUTF(env, ci->op_str);
+	(*env)->SetObjectField(env, csInsnObject, field_op_str, ops);
 
-		jstring ops = (*env)->NewStringUTF(env, ci->op_str);
-		(*env)->SetObjectField(env, javaObject, field_op_str, ops);
+	if (ci->detail) {
+	    // Detail
+	    // 
+	    //public static  abstract class CsDetail {
+	    //
+	    // list of all implicit registers being read.
+	    //public short[] regs_read = new short[16];
+	    //public byte regs_read_count;
+	    //// list of all implicit registers being written.
+	    //public short[] regs_write = new short[20];
+	    //public byte regs_write_count;
+	    //// list of semantic groups this instruction belongs to.
+	    //public byte[] groups = new byte[8];
+	    //public byte groups_count;
+	    //}
 
-		if (ci->detail) {
-		    // Detail
-		    // 
-		    //public static class _cs_detail {
-		    //
-		    //    // list of all implicit registers being read.
-		    //    public byte[] regs_read = new byte[12];
-		    //    public byte regs_read_count;
-		    //    // list of all implicit registers being written.
-		    //    public byte[] regs_write = new byte[20];
-		    //    public byte regs_write_count;
-		    //    // list of semantic groups this instruction belongs to.
-		    //    public byte[] groups = new byte[8];
-		    //    public byte groups_count;
-		    //    public InsnDetail arch;
-		    //}
+	    // public UnionArch arch;
+	    jclass jclass_CsDetail = NULL;
+	    jobject baseInsnObject = NULL;
 
-		    // public UnionArch arch;
-
-		    jclass_cs_detail = (*env)->FindClass(env, "capstone/Capstone$_cs_detail");
-		    constructor = (*env)->GetMethodID(env, jclass_cs_detail, "<init>", "()V");
-		    detailObject = (*env)->NewObject(env, jclass_cs_detail, constructor);
-		    (*env)->SetObjectField(env, javaObject, field_detail, detailObject);
-
-		    jfieldID field_d_regs_read = (*env)->GetFieldID(env, jclass_cs_detail, "regs_read", "[B");
-		    jfieldID field_d_regs_read_count = (*env)->GetFieldID(env, jclass_cs_detail, "regs_read_count", "B");
-		    jfieldID field_d_regs_write = (*env)->GetFieldID(env, jclass_cs_detail, "regs_write", "[B");
-		    jfieldID field_d_regs_write_count = (*env)->GetFieldID(env, jclass_cs_detail, "regs_write_count", "B");
-		    jfieldID field_d_groups = (*env)->GetFieldID(env, jclass_cs_detail, "groups", "[B");
-		    jfieldID field_d_groups_count = (*env)->GetFieldID(env, jclass_cs_detail, "groups_count", "B");
-		    jfieldID field_arch_detail = (*env)->GetFieldID(env, jclass_cs_detail, "arch", "Lcapstone/Capstone$ArchDetail;");
-
-		    jbyteArray jary = (jbyteArray)(*env)->GetObjectField(env, detailObject, field_d_regs_read);
-		    (*env)->SetByteArrayRegion(env, jary, 0, ci->detail->regs_read_count, ci->detail->regs_read);
-		    (*env)->SetByteField(env, detailObject, field_d_regs_read_count, ci->detail->regs_read_count);
-		    jary = (jbyteArray)(*env)->GetObjectField(env, detailObject, field_d_regs_write);
-		    (*env)->SetByteArrayRegion(env, jary, 0, ci->detail->regs_write_count, ci->detail->regs_write);
-		    (*env)->SetByteField(env, detailObject, field_d_regs_write_count, ci->detail->regs_write_count);
-		    jary = (jbyteArray)(*env)->GetObjectField(env, detailObject, field_d_groups);
-		    (*env)->SetByteArrayRegion(env, jary, 0, ci->detail->groups_count, ci->detail->groups);
-		    (*env)->SetByteField(env, detailObject, field_d_groups_count, ci->detail->groups_count);
-
-		    switch (cs->arch) {
-		    case CS_ARCH_X86: {
-			jclass jclass_x86 = (*env)->FindClass(env, "capstone/X86$X86Detail");
-			constructor = (*env)->GetMethodID(env, jclass_x86, "<init>", "()V");
-			jobject arch = (*env)->NewObject(env, jclass_x86, constructor);
-			(*env)->SetObjectField(env, detailObject, field_arch_detail, arch);
-			printf("Set arch field %p add method %p\n", field_arch_detail, arch);
-
-			/*
-			 public static class X86Detail extends Capstone.ArchDetail {
-			public byte [] prefix = new byte[4];
-			public byte [] opcode  = new byte[4];
-			public byte rex;
-			public byte addr_size;
-			public byte modrm;
-			public byte sib;
-			public int disp;
-			public int sib_index;
-			public byte sib_scale;
-			public int sib_base;
-			public int sse_cc;
-			public int avx_cc;
-			public byte avx_sae;
-			public int avx_rm;
-			public byte op_count;
-			public Operand[] op = new Operand[8];
-			*/
-
-			jfieldID field_prefix = (*env)->GetFieldID(env, jclass_x86, "prefix", "[B");
-			jfieldID field_opcode = (*env)->GetFieldID(env, jclass_x86, "opcode", "[B");
-			jfieldID field_rex = (*env)->GetFieldID(env, jclass_x86, "rex", "B");
-			jfieldID field_addr_size = (*env)->GetFieldID(env, jclass_x86, "addr_size", "B");
-			jfieldID field_modrm = (*env)->GetFieldID(env, jclass_x86, "modrm", "B");
-			jfieldID field_sib = (*env)->GetFieldID(env, jclass_x86, "sib", "B");
-			jfieldID field_disp = (*env)->GetFieldID(env, jclass_x86, "disp", "I");
-			jfieldID field_sib_index = (*env)->GetFieldID(env, jclass_x86, "sib_index", "I");
-			jfieldID field_sib_scale = (*env)->GetFieldID(env, jclass_x86, "sib_scale", "B");
-			jfieldID field_sib_base = (*env)->GetFieldID(env, jclass_x86, "sib_base", "I");
-			jfieldID field_sse_cc = (*env)->GetFieldID(env, jclass_x86, "sse_cc", "I");
-			jfieldID field_avx_cc = (*env)->GetFieldID(env, jclass_x86, "avx_cc", "I");
-			jfieldID field_avx_sae = (*env)->GetFieldID(env, jclass_x86, "avx_sae", "B");
-			jfieldID field_avx_rm = (*env)->GetFieldID(env, jclass_x86, "avx_rm", "I");
-			jfieldID field_op_count = (*env)->GetFieldID(env, jclass_x86, "op_count", "B");
-			jfieldID field_op = (*env)->GetFieldID(env, jclass_x86, "op", "[Lcapstone/X86$Operand;");
-
-			cs_x86* x86 = &ci->detail->x86;
-			jary = (jbyteArray)(*env)->GetObjectField(env, arch, field_prefix);
-			(*env)->SetByteArrayRegion(env, jary, 0, sizeof(x86->prefix), x86->prefix);
-			jary = (jbyteArray)(*env)->GetObjectField(env, arch, field_opcode);
-			(*env)->SetByteArrayRegion(env, jary, 0, sizeof(x86->opcode), x86->opcode);
-			(*env)->SetByteField(env, arch, field_rex, x86->rex);
-			(*env)->SetByteField(env, arch, field_addr_size, x86->addr_size);
-			(*env)->SetByteField(env, arch, field_modrm, x86->modrm);
-			(*env)->SetByteField(env, arch, field_sib, x86->sib);
-			(*env)->SetIntField(env, arch, field_disp, x86->disp);
-			(*env)->SetIntField(env, arch, field_sib_index, x86->sib_index);
-			(*env)->SetByteField(env, arch, field_sib, x86->sib_scale);
-			(*env)->SetIntField(env, arch, field_sib_base, x86->sib_base);
-			(*env)->SetIntField(env, arch, field_sse_cc, x86->sse_cc);
-			(*env)->SetIntField(env, arch, field_avx_cc, x86->avx_cc);
-			(*env)->SetByteField(env, arch, field_avx_sae, x86->avx_sae);
-			(*env)->SetIntField(env, arch, field_avx_rm, x86->avx_rm);
-			(*env)->SetByteField(env, arch, field_op_count, x86->op_count);
-
-			/*
-			  public static class OperandMem {
-			    public int segment;
-			    public int base;
-			    public int index;
-			    public int scale;
-			    public long disp;
-			  }
-
-			  public static class Operand {
-			    public int type;
-
-			    // Following is a union
-			    // {
-			    public int reg;
-			    public long imm;
-			    public double fp;
-			    public OperandMem mem;
-			    // }
-
-			    public byte size;
-			    public int avx_bcast;
-			    public boolean avx_zero_opmask;
-			  }			
-			  */
-
-			jclass jclass_operand = (*env)->FindClass(env, "capstone/X86$Operand");
-			constructor = (*env)->GetMethodID(env, jclass_operand, "<init>", "()V");
-			jary = (jobjectArray)(*env)->GetObjectField(env, arch, field_op);
-
-			jfieldID field_type = (*env)->GetFieldID(env, jclass_operand, "type", "I");
-			jfieldID field_reg = (*env)->GetFieldID(env, jclass_operand, "reg", "I");
-			jfieldID field_imm = (*env)->GetFieldID(env, jclass_operand, "imm", "J");
-			// jfieldID field_fp = (*env)->GetFieldID(env, jclass_operand, "fp", "D");
-			jfieldID field_mem = (*env)->GetFieldID(env, jclass_operand, "mem", "Lcapstone/X86$OperandMem;");
-			jfieldID field_size = (*env)->GetFieldID(env, jclass_operand, "size", "B");
-			jfieldID field_avx_bcast = (*env)->GetFieldID(env, jclass_operand, "avx_bcast", "I");
-			jfieldID field_avx_zero_opmask = (*env)->GetFieldID(env, jclass_operand, "avx_zero_opmask", "Z");
-
-
-			for (auto i = 0; i < x86->op_count; i++) {
-			    cs_x86_op* op = &x86->operands[i];
-			    jobject operand = (*env)->NewObject(env, jclass_operand, constructor);
-			    // (*env)->SetByteArrayRegion(env, jary, 0, sizeof(x86->opcode), x86->opcode);
-
-			    (*env)->SetIntField(env, operand, field_type, op->type);
-			    printf("Setting operand %i to type=%d\n", i, op->type);
-
-			    switch (op->type) {
-			    case X86_OP_REG:
-				(*env)->SetIntField(env, operand, field_reg, op->reg); break;
-			    case X86_OP_IMM:
-				(*env)->SetLongField(env, operand, field_imm, op->imm); break;
-			    case X86_OP_MEM: {
-				jclass jclass_operand_mem = (*env)->FindClass(env, "capstone/X86$OperandMem");
-				jmethodID constructor = (*env)->GetMethodID(env, jclass_operand_mem, "<init>", "()V");
-				jobject opmem = (*env)->NewObject(env, jclass_operand_mem, constructor);
-
-				jfieldID field_segment = (*env)->GetFieldID(env, jclass_operand_mem, "segment", "I");
-				jfieldID field_base = (*env)->GetFieldID(env, jclass_operand_mem, "base", "I");
-				jfieldID field_index = (*env)->GetFieldID(env, jclass_operand_mem, "index", "I");
-				jfieldID field_scale = (*env)->GetFieldID(env, jclass_operand_mem, "scale", "I");
-				jfieldID field_disp = (*env)->GetFieldID(env, jclass_operand_mem, "disp", "J");
-
-				(*env)->SetIntField(env, opmem, field_segment, op->mem.segment);
-				(*env)->SetIntField(env, opmem, field_base, op->mem.base);
-				(*env)->SetIntField(env, opmem, field_index, op->mem.index);
-				(*env)->SetIntField(env, opmem, field_scale, op->mem.scale);
-				(*env)->SetLongField(env, opmem, field_disp, op->mem.disp);
-
-				(*env)->SetObjectField(env, operand, field_mem, opmem);
-				break;
-			    }
-			    }
-
-			    (*env)->SetByteField(env, operand, field_size, op->size);
-			    (*env)->SetIntField(env, operand, field_avx_bcast, op->avx_bcast);
-			    (*env)->SetBooleanField(env, operand, field_avx_zero_opmask, op->avx_zero_opmask);
-
-			   /* switch ((int)op->type) {
-			    case X86_OP_REG:
-				printf("\t\toperands[%u].type: REG = %s\n", i, cs_reg_name(handle, op->reg));
-				break;
-			    case X86_OP_IMM:
-				printf("\t\toperands[%u].type: IMM = 0x%" PRIx64 "\n", i, op->imm);
-				break;
-			    case X86_OP_MEM:
-				printf("\t\toperands[%u].type: MEM\n", i);
-				if (op->mem.segment != X86_REG_INVALID)
-				    printf("\t\t\toperands[%u].mem.segment: REG = %s\n", i, cs_reg_name(handle, op->mem.segment));
-				if (op->mem.base != X86_REG_INVALID)
-				    printf("\t\t\toperands[%u].mem.base: REG = %s\n", i, cs_reg_name(handle, op->mem.base));
-				if (op->mem.index != X86_REG_INVALID)
-				    printf("\t\t\toperands[%u].mem.index: REG = %s\n", i, cs_reg_name(handle, op->mem.index));
-				if (op->mem.scale != 1)
-				    printf("\t\t\toperands[%u].mem.scale: %u\n", i, op->mem.scale);
-				if (op->mem.disp != 0)
-				    printf("\t\t\toperands[%u].mem.disp: 0x%" PRIx64 "\n", i, op->mem.disp);
-				break;
-			    default:
-				break;
-			    }*/
-
-
-			    (*env)->SetObjectArrayElement(env, jary, i, operand);
-
-			}
-		    }
-
-		    }
-		}
-
-		// Add to ArrayList
-		{
-		    jclass arrayList = (*env)->FindClass(env, "Ljava/util/ArrayList;");
-		    jmethodID array_add = (*env)->GetMethodID(env, arrayList, "add", "(Ljava/lang/Object;)Z");
-		    // printf("Arraylist class %p add method %p\n", arrayList, array_add);
-		    (*env)->CallBooleanMethod(env, insnArray, array_add, javaObject);
-		}
-
+	    switch (cs->arch) {
+	    case CS_ARCH_X86: {
+		FINDCLASS(jclass_x86, "capstone/X86$X86Detail");
+		GETMETHOD(constructor, jclass_x86, "<init>", "(Lcapstone/Capstone$CsInsn;)V");
+		NEWOBJECT(x86InsnObject, jclass_x86, constructor, csInsnObject);
+		baseInsnObject = x86InsnObject;
+		GETFIELD(field_d_regs_read, jclass_x86, "regs_read", "[S");
+		printf("Made it!");
+		break;
+	    }
+	    default:
+		;
+		// Unsupported
 	    }
 
 
+	    FINDCLASS(jclass_cs_detail, "capstone/Capstone$CsDetail");
+	    GETMETHOD(constructor, jclass_cs_detail, "<init>", "()V");
+	    NEWOBJECT(detailObject, jclass_cs_detail, constructor);
+	    // constructor = (*env)->GetMethodID(env, jclass_cs_detail, "<init>", "()V");
+	    // detailObject = (*env)->NewObject(env, jclass_cs_detail, constructor);
+	    printf("Here...\n");
+	    (*env)->SetObjectField(env, csInsnObject, field_detail, detailObject);
+	    printf("Here2...\n");
+
+	    GETFIELD(field_d_regs_read, jclass_cs_detail, "regs_read", "[S")
+	    GETFIELD(field_d_regs_read_count, jclass_cs_detail, "regs_read_count", "B")
+	    GETFIELD(field_d_regs_write, jclass_cs_detail, "regs_write", "[S")
+	    GETFIELD(field_d_regs_write_count, jclass_cs_detail, "regs_write_count", "B")
+	    GETFIELD(field_d_groups, jclass_cs_detail, "groups", "[B")
+	    GETFIELD(field_d_groups_count, jclass_cs_detail, "groups_count", "B")
+	    GETFIELD(field_arch_detail, jclass_cs_detail, "arch", "Lcapstone/Capstone$ArchDetail;")
+
+	    jshortArray shortarray = (jshortArray)(*env)->GetObjectField(env, detailObject, field_d_regs_read);
+	    (*env)->SetShortArrayRegion(env, shortarray, 0, ci->detail->regs_read_count, ci->detail->regs_read);
+	    (*env)->SetByteField(env, detailObject, field_d_regs_read_count, ci->detail->regs_read_count);
+	    shortarray = (jshortArray)(*env)->GetObjectField(env, detailObject, field_d_regs_write);
+	    (*env)->SetShortArrayRegion(env, shortarray, 0, ci->detail->regs_write_count, ci->detail->regs_write);
+	    (*env)->SetByteField(env, detailObject, field_d_regs_write_count, ci->detail->regs_write_count);
+	    jbyteArray jary = (jbyteArray)(*env)->GetObjectField(env, detailObject, field_d_groups);
+	    (*env)->SetByteArrayRegion(env, jary, 0, ci->detail->groups_count, ci->detail->groups);
+	    (*env)->SetByteField(env, detailObject, field_d_groups_count, ci->detail->groups_count);
+
+	    switch (cs->arch) {
+	    case CS_ARCH_X86: {
+		jclass jclass_x86 = (*env)->FindClass(env, "capstone/X86$X86Detail");
+		constructor = (*env)->GetMethodID(env, jclass_x86, "<init>", "()V");
+		jobject arch = (*env)->NewObject(env, jclass_x86, constructor);
+		(*env)->SetObjectField(env, detailObject, field_arch_detail, arch);
+		printf("Set arch field %p add method %p\n", field_arch_detail, arch);
+
+		/*
+		    public static class X86Detail extends Capstone.ArchDetail {
+		public byte[] prefix;
+		public byte[] opcode;
+		public byte rex;
+		public byte addr_size;
+		public byte modrm;
+		public byte sib;
+		public long disp;
+		public int sib_index;
+		public byte sib_scale;
+		public int sib_base;
+		public int xop_cc;
+		public int sse_cc;
+		public int avx_cc;
+		public byte avx_sae;
+		public int avx_rm;
+		public long eflags;
+		public byte op_count;
+		public Operand[] op;
+		public byte modrmOffset;
+		public byte dispOffset;
+		public byte dispSize;
+		public byte immOffset;
+		public byte immSize;
+		*/
+
+		jfieldID field_prefix = (*env)->GetFieldID(env, jclass_x86, "prefix", "[B");
+		jfieldID field_opcode = (*env)->GetFieldID(env, jclass_x86, "opcode", "[B");
+		jfieldID field_rex = (*env)->GetFieldID(env, jclass_x86, "rex", "B");
+		jfieldID field_addr_size = (*env)->GetFieldID(env, jclass_x86, "addr_size", "B");
+		jfieldID field_modrm = (*env)->GetFieldID(env, jclass_x86, "modrm", "B");
+		jfieldID field_sib = (*env)->GetFieldID(env, jclass_x86, "sib", "B");
+		jfieldID field_disp = (*env)->GetFieldID(env, jclass_x86, "disp", "J");
+		jfieldID field_sib_index = (*env)->GetFieldID(env, jclass_x86, "sib_index", "I");
+		jfieldID field_sib_scale = (*env)->GetFieldID(env, jclass_x86, "sib_scale", "B");
+		jfieldID field_sib_base = (*env)->GetFieldID(env, jclass_x86, "sib_base", "I");
+		jfieldID field_sse_cc = (*env)->GetFieldID(env, jclass_x86, "sse_cc", "I");
+		jfieldID field_avx_cc = (*env)->GetFieldID(env, jclass_x86, "avx_cc", "I");
+		jfieldID field_avx_sae = (*env)->GetFieldID(env, jclass_x86, "avx_sae", "B");
+		jfieldID field_avx_rm = (*env)->GetFieldID(env, jclass_x86, "avx_rm", "I");
+		jfieldID field_op_count = (*env)->GetFieldID(env, jclass_x86, "op_count", "B");
+		jfieldID field_op = (*env)->GetFieldID(env, jclass_x86, "op", "[Lcapstone/X86$Operand;");
+
+		cs_x86* x86 = &ci->detail->x86;
+		jary = (jbyteArray)(*env)->GetObjectField(env, arch, field_prefix);
+		(*env)->SetByteArrayRegion(env, jary, 0, sizeof(x86->prefix), x86->prefix);
+		jary = (jbyteArray)(*env)->GetObjectField(env, arch, field_opcode);
+		(*env)->SetByteArrayRegion(env, jary, 0, sizeof(x86->opcode), x86->opcode);
+		(*env)->SetByteField(env, arch, field_rex, x86->rex);
+		(*env)->SetByteField(env, arch, field_addr_size, x86->addr_size);
+		(*env)->SetByteField(env, arch, field_modrm, x86->modrm);
+		(*env)->SetByteField(env, arch, field_sib, x86->sib);
+		(*env)->SetLongField(env, arch, field_disp, x86->disp);
+		(*env)->SetIntField(env, arch, field_sib_index, x86->sib_index);
+		(*env)->SetByteField(env, arch, field_sib, x86->sib_scale);
+		(*env)->SetIntField(env, arch, field_sib_base, x86->sib_base);
+		(*env)->SetIntField(env, arch, field_sse_cc, x86->sse_cc);
+		(*env)->SetIntField(env, arch, field_avx_cc, x86->avx_cc);
+		(*env)->SetByteField(env, arch, field_avx_sae, x86->avx_sae);
+		(*env)->SetIntField(env, arch, field_avx_rm, x86->avx_rm);
+		(*env)->SetByteField(env, arch, field_op_count, x86->op_count);
+
+		/*
+		    public static class OperandMem {
+		    public int segment;
+		    public int base;
+		    public int index;
+		    public int scale;
+		    public long disp;
+		    }
+
+		    public static class Operand {
+		    public int type;
+
+		    // Following is a union
+		    // {
+		    public int reg;
+		    public long imm;
+		    public double fp;
+		    public OperandMem mem;
+		    // }
+
+		    public byte size;
+		    public int avx_bcast;
+		    public boolean avx_zero_opmask;
+		    }			
+		    */
+
+		jclass jclass_operand = (*env)->FindClass(env, "capstone/X86$Operand");
+		constructor = (*env)->GetMethodID(env, jclass_operand, "<init>", "()V");
+		jary = (jobjectArray)(*env)->GetObjectField(env, arch, field_op);
+
+		jfieldID field_type = (*env)->GetFieldID(env, jclass_operand, "type", "I");
+		jfieldID field_reg = (*env)->GetFieldID(env, jclass_operand, "reg", "I");
+		jfieldID field_imm = (*env)->GetFieldID(env, jclass_operand, "imm", "J");
+		jfieldID field_mem = (*env)->GetFieldID(env, jclass_operand, "mem", "Lcapstone/X86$OperandMem;");
+		jfieldID field_size = (*env)->GetFieldID(env, jclass_operand, "size", "B");
+		jfieldID field_avx_bcast = (*env)->GetFieldID(env, jclass_operand, "avx_bcast", "I");
+		jfieldID field_avx_zero_opmask = (*env)->GetFieldID(env, jclass_operand, "avx_zero_opmask", "Z");
 
 
+		for (auto i = 0; i < x86->op_count; i++) {
+		    cs_x86_op* op = &x86->operands[i];
+		    jobject operand = (*env)->NewObject(env, jclass_operand, constructor);
+		    // (*env)->SetByteArrayRegion(env, jary, 0, sizeof(x86->opcode), x86->opcode);
+
+		    (*env)->SetIntField(env, operand, field_type, op->type);
+		    printf("Setting operand %i to type=%d\n", i, op->type);
+
+		    switch (op->type) {
+		    case X86_OP_REG:
+			(*env)->SetIntField(env, operand, field_reg, op->reg); break;
+		    case X86_OP_IMM:
+			(*env)->SetLongField(env, operand, field_imm, op->imm); break;
+		    case X86_OP_MEM: {
+			jclass jclass_operand_mem = (*env)->FindClass(env, "capstone/X86$OperandMem");
+			jmethodID constructor = (*env)->GetMethodID(env, jclass_operand_mem, "<init>", "()V");
+			jobject opmem = (*env)->NewObject(env, jclass_operand_mem, constructor);
+
+			jfieldID field_segment = (*env)->GetFieldID(env, jclass_operand_mem, "segment", "I");
+			jfieldID field_base = (*env)->GetFieldID(env, jclass_operand_mem, "base", "I");
+			jfieldID field_index = (*env)->GetFieldID(env, jclass_operand_mem, "index", "I");
+			jfieldID field_scale = (*env)->GetFieldID(env, jclass_operand_mem, "scale", "I");
+			jfieldID field_disp = (*env)->GetFieldID(env, jclass_operand_mem, "disp", "J");
+
+			(*env)->SetIntField(env, opmem, field_segment, op->mem.segment);
+			(*env)->SetIntField(env, opmem, field_base, op->mem.base);
+			(*env)->SetIntField(env, opmem, field_index, op->mem.index);
+			(*env)->SetIntField(env, opmem, field_scale, op->mem.scale);
+			(*env)->SetLongField(env, opmem, field_disp, op->mem.disp);
+
+			(*env)->SetObjectField(env, operand, field_mem, opmem);
+			break;
+		    }
+		    }
+
+		    (*env)->SetByteField(env, operand, field_size, op->size);
+		    (*env)->SetIntField(env, operand, field_avx_bcast, op->avx_bcast);
+		    (*env)->SetBooleanField(env, operand, field_avx_zero_opmask, op->avx_zero_opmask);
+
+		    /* switch ((int)op->type) {
+		    case X86_OP_REG:
+			printf("\t\toperands[%u].type: REG = %s\n", i, cs_reg_name(handle, op->reg));
+			break;
+		    case X86_OP_IMM:
+			printf("\t\toperands[%u].type: IMM = 0x%" PRIx64 "\n", i, op->imm);
+			break;
+		    case X86_OP_MEM:
+			printf("\t\toperands[%u].type: MEM\n", i);
+			if (op->mem.segment != X86_REG_INVALID)
+			    printf("\t\t\toperands[%u].mem.segment: REG = %s\n", i, cs_reg_name(handle, op->mem.segment));
+			if (op->mem.base != X86_REG_INVALID)
+			    printf("\t\t\toperands[%u].mem.base: REG = %s\n", i, cs_reg_name(handle, op->mem.base));
+			if (op->mem.index != X86_REG_INVALID)
+			    printf("\t\t\toperands[%u].mem.index: REG = %s\n", i, cs_reg_name(handle, op->mem.index));
+			if (op->mem.scale != 1)
+			    printf("\t\t\toperands[%u].mem.scale: %u\n", i, op->mem.scale);
+			if (op->mem.disp != 0)
+			    printf("\t\t\toperands[%u].mem.disp: 0x%" PRIx64 "\n", i, op->mem.disp);
+			break;
+		    default:
+			break;
+		    }*/
 
 
+		    (*env)->SetObjectArrayElement(env, jary, i, operand);
 
+		}
+	    }
 
-
+	    }
 	}
-	printf("0x%" PRIx64 ":\n", insn[j - 1].address + insn[j - 1].size);
 
-	// free memory allocated by cs_disasm()
-	cs_free(insn, count);
+	// Add to ArrayList
+	{
+	    jclass arrayList = (*env)->FindClass(env, "Ljava/util/ArrayList;");
+	    jmethodID array_add = (*env)->GetMethodID(env, arrayList, "add", "(Ljava/lang/Object;)Z");
+	    // printf("Arraylist class %p add method %p\n", arrayList, array_add);
+	    (*env)->CallBooleanMethod(env, insnArray, array_add, csInsnObject);
+	}
+
+	
+
+
+
+
+
+
+
+
+
     }
-    else {
-	printf("****************\n");
-	printf("ERROR: Failed to disasm given code!\n");
-    }
+    printf("0x%" PRIx64 ":\n", insn[j - 1].address + insn[j - 1].size);
+
+    // free memory allocated by cs_disasm()
+    cs_free(insn, count);
+
+ERROR:
+    // free memory allocated by cs_disasm()
+    if (insn) cs_free(insn, count);
 
  //   printf("\n");
 

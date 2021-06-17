@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Arrays;
 import java.lang.RuntimeException;
 
+// TODO - THIS IS REGULAR JAVA BINDING
 public class Capstone {
 
   protected static abstract class OpInfo {};

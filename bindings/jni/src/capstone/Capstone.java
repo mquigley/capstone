@@ -17,7 +17,7 @@ public class Capstone {
 
     native public int cs_open(int arch, int mode, LongByReference handle);
     native public long cs_disasm(long handle, byte[] code, long code_len,
-                                 long addr, long count, ArrayList<_cs_insn> insn);
+                                 long addr, long count, ArrayList<CsInsn> insn);
     native public int cs_close(long handle);
     native public int cs_option(long handle, int option, long optionValue);
 
@@ -55,7 +55,7 @@ public class Capstone {
         byte[] data = { 0x12, 0x2 }; //, 0x3, 0x4, 0x5, 6, 7, 8, 9, 10, 11, 12 };
 
 
-        ArrayList<_cs_insn> list = new ArrayList<>();
+        ArrayList<CsInsn> list = new ArrayList<>();
 
         long start = System.currentTimeMillis();
 
@@ -68,8 +68,8 @@ public class Capstone {
         System.out.println("Total time took " + length + "ms. Average was " + (length / TIMES) + "ms.");
 
         System.out.println("main method end. the list is:");
-        for (_cs_insn insn : list) {
-            System.out.println(insn.toString(cs));
+        for (CsInsn insn : list) {
+            System.out.println(insn.toString());
         }
         System.out.println("Goodbye.\n\n\n");
     }
@@ -110,8 +110,8 @@ public class Capstone {
      * @param count The maximum number of instructions to disassemble, 0 for no maximum.
      * @return the array of successfully disassembled instructions, empty if no instruction could be disassembled.
      */
-    public ArrayList<_cs_insn> disasm(byte[] code, long address, long count) {
-        ArrayList<_cs_insn> list = new ArrayList<>();
+    public ArrayList<CsInsn> disasm(byte[] code, long address, long count) {
+        ArrayList<CsInsn> list = new ArrayList<>();
         long c = cs.cs_disasm(handle, code, code.length, address, count, list);
 //
 //        System.out.println("Disassembled " + c + " instructions");
@@ -135,26 +135,8 @@ public class Capstone {
         return list;
     }
 
-    protected static abstract class OpInfo {};
-    protected static abstract class ArchDetail {
-        public String toString(Capstone cs) {
-            return toString();
-        }
-    };
-
-    public static abstract class UnionArchDetail {
-//        public Arm.UnionOpInfo arm;
-//        public Arm64.UnionOpInfo arm64;
-//        public X86.X86Detail x86;
-//        public Mips.UnionOpInfo mips;
-//        public Ppc.UnionOpInfo ppc;
-//        public Sparc.UnionOpInfo sparc;
-//        public Systemz.UnionOpInfo sysz;
-//        public Xcore.UnionOpInfo xcore;
-    }
-
     // E:\dev\disasm\capstone\include\capstone.h #285
-    public static class _cs_insn {
+    public static class CsInsn {
         // instruction ID.
         public int id;
         // instruction address.
@@ -162,13 +144,19 @@ public class Capstone {
         // instruction size.
         public short size;
         // machine bytes of instruction.
-        public byte[] bytes = new byte[16];
+        public byte[] bytes = new byte[24];
         // instruction mnemonic. NOTE: irrelevant for diet engine.
         public String mnemonic = "";
         // instruction operands. NOTE: irrelevant for diet engine.
         public String op_str = "";
         // detail information of instruction.
-        public _cs_detail cs_detail;
+        public CsDetail cs_detail;
+        // handle
+        protected Capstone cs;
+
+        public CsInsn(Capstone cs) {
+            this.cs = cs;
+        }
 
         @Override
         public String toString() {
@@ -179,66 +167,46 @@ public class Capstone {
                     ", address=" + address +
                     ", size=" + size +
                     ", bytes=" + Capstone.toString(bytes, size) +
-                    ", cs_detail=" + cs_detail +
-                    '}';
-        }
-
-        public String toString(Capstone cs) {
-            return "_cs_insn{" +
-                    "id=" + id +
-                    ", mnemonic=" + mnemonic +
-                    ", op_str=" +op_str +
-                    ", address=" + address +
-                    ", size=" + size +
-                    ", bytes=" + Capstone.toString(bytes, size) +
-                    ", cs_detail=" + cs_detail.toString(cs) +
+                    ", cs_detail=" + cs_detail.toString() +
                     '}';
         }
     }
 
     // E:\dev\disasm\capstone\include\capstone.h #246
-    public static class _cs_detail {
+    public static abstract class CsDetail {
+        protected final CsInsn parent;
+
+        public CsDetail(CsInsn parent) {
+            this.parent = parent;
+        }
 
         // list of all implicit registers being read.
-        public byte[] regs_read = new byte[12];
+        public short[] regs_read = new short[16];
         public byte regs_read_count;
         // list of all implicit registers being written.
-        public byte[] regs_write = new byte[20];
+        public short[] regs_write = new short[20];
         public byte regs_write_count;
         // list of semantic groups this instruction belongs to.
         public byte[] groups = new byte[8];
         public byte groups_count;
 
-        public ArchDetail arch;
-
-        public X86.X86Detail x86() { return (X86.X86Detail) arch; }
+        public X86.X86Detail x86() { return (X86.X86Detail) this; }
 
         @Override
         public String toString() {
-            return "_cs_detail{\n" +
-                    "regs_read=" + Capstone.toString(regs_read, regs_read_count) +
-                    ", regs_read_count=" + regs_read_count +
-                    ", regs_write=" + Capstone.toString(regs_write, regs_write_count) +
-                    ", regs_write_count=" + regs_write_count +
-                    ", groups=" + Capstone.toString(groups, groups_count) +
-                    ", groups_count=" + groups_count +
-                    ",\n arch=" + arch +
-                    '}';
-        }
-
-        public String toString(Capstone cs) {
-            String regsReadText = "[!!!!";
+            Capstone cs = parent.cs;
+            StringBuilder regsReadText = new StringBuilder("[!!!!");
             for (int i = 0; i < regs_read_count; i++) {
-                if (i != 0) regsReadText += ", ";
-                regsReadText += cs.cs_reg_name(cs.handle, regs_read[i]);
+                if (i != 0) regsReadText.append(", ");
+                regsReadText.append(cs.cs_reg_name(cs.handle, regs_read[i]));
             }
-            regsReadText += "]";
-            String regsWriteText = "[!!!!";
+            regsReadText.append("]");
+            StringBuilder regsWriteText = new StringBuilder("[!!!!");
             for (int i = 0; i < regs_write_count; i++) {
-                if (i != 0) regsWriteText += ", ";
-                regsWriteText += cs.cs_reg_name(cs.handle, regs_write[i]);
+                if (i != 0) regsWriteText.append(", ");
+                regsWriteText.append(cs.cs_reg_name(cs.handle, regs_write[i]));
             }
-            regsWriteText += "]";
+            regsWriteText.append("]");
             return "_cs_detail{\n" +
                     "regs_read=" + regsReadText +
                     ", regs_read_count=" + regs_read_count +
@@ -246,7 +214,6 @@ public class Capstone {
                     ", regs_write_count=" + regs_write_count +
                     ", groups=" + Capstone.toString(groups, groups_count) +
                     ", groups_count=" + groups_count +
-                    ",\n arch=" + arch.toString(cs) +
                     '}';
         }
     }
@@ -265,158 +232,6 @@ public class Capstone {
 
 
 
-
-    public static class CsInsn {
-        private long csh;
-        private Capstone cs;
-        private _cs_insn raw;
-        private int arch;
-
-        // instruction ID.
-        public int id;
-        // instruction address.
-        public long address;
-        // instruction size.
-        public short size;
-        // instruction mnemonic. NOTE: irrelevant for diet engine.
-        public String mnemonic;
-        // instruction operands. NOTE: irrelevant for diet engine.
-        public String opStr;
-        // list of all implicit registers being read.
-        public byte[] regsRead;
-        // list of all implicit registers being written.
-        public byte[] regsWrite;
-        // list of semantic groups this instruction belongs to.
-        public byte[] groups;
-        public OpInfo operands;
-
-        public CsInsn (_cs_insn insn, int _arch, long _csh, Capstone _cs, boolean diet) {
-            id = insn.id;
-            address = insn.address;
-            size = insn.size;
-
-            mnemonic = insn.mnemonic;
-            opStr = insn.op_str;
-
-            cs = _cs;
-            arch = _arch;
-            raw = insn;
-            csh = _csh;
-
-            if (insn.cs_detail != null) {
-                if (!diet) {
-                    regsRead = new byte[insn.cs_detail.regs_read_count];
-                    for (int i=0; i<regsRead.length; i++)
-                        regsRead[i] = insn.cs_detail.regs_read[i];
-                    regsWrite = new byte[insn.cs_detail.regs_write_count];
-                    for (int i=0; i<regsWrite.length; i++)
-                        regsWrite[i] = insn.cs_detail.regs_write[i];
-                    groups = new byte[insn.cs_detail.groups_count];
-                    for (int i=0; i<groups.length; i++)
-                        groups[i] = insn.cs_detail.groups[i];
-                }
-
-                operands = getOptInfo(insn.cs_detail);
-            }
-        }
-
-        private OpInfo getOptInfo(_cs_detail detail) {
-            OpInfo op_info = null;
-
-            switch (this.arch) {
-//                case CS_ARCH_ARM:
-//                    detail.arch.setType(Arm.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new Arm.OpInfo((Arm.UnionOpInfo) detail.arch.arm);
-//                    break;
-//                case CS_ARCH_ARM64:
-//                    detail.arch.setType(Arm64.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new Arm64.OpInfo((Arm64.UnionOpInfo) detail.arch.arm64);
-//                    break;
-//                case CS_ARCH_MIPS:
-//                    detail.arch.setType(Mips.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new Mips.OpInfo((Mips.UnionOpInfo) detail.arch.mips);
-//                    break;
-//                case CS_ARCH_X86:
-//                    detail.arch.setType(X86.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new X86.OpInfo((X86.UnionOpInfo) detail.arch.x86);
-//                    break;
-//                case CS_ARCH_SPARC:
-//                    detail.arch.setType(Sparc.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new Sparc.OpInfo((Sparc.UnionOpInfo) detail.arch.sparc);
-//                    break;
-//                case CS_ARCH_SYSZ:
-//                    detail.arch.setType(Systemz.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new Systemz.OpInfo((Systemz.UnionOpInfo) detail.arch.sysz);
-//                    break;
-//                case CS_ARCH_PPC:
-//                    detail.arch.setType(Ppc.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new Ppc.OpInfo((Ppc.UnionOpInfo) detail.arch.ppc);
-//                    break;
-//                case CS_ARCH_XCORE:
-//                    detail.arch.setType(Xcore.UnionOpInfo.class);
-//                    detail.arch.read();
-//                    op_info = new Xcore.OpInfo((Xcore.UnionOpInfo) detail.arch.xcore);
-//                    break;
-                default:
-            }
-
-            return op_info;
-        }
-
-//        public int opCount(int type) {
-//            return cs.cs_op_count(csh, raw.getPointer(), type);
-//        }
-//
-//        public int opIndex(int type, int index) {
-//            return cs.cs_op_index(csh, raw.getPointer(), type, index);
-//        }
-//
-//        public boolean regRead(int reg_id) {
-//            return cs.cs_reg_read(csh, raw.getPointer(), reg_id) != 0;
-//        }
-//
-//        public boolean regWrite(int reg_id) {
-//            return cs.cs_reg_write(csh, raw.getPointer(), reg_id) != 0;
-//        }
-//
-//        public int errno() {
-//            return cs.cs_errno(csh);
-//        }
-//
-//        public String regName(int reg_id) {
-//            return cs.cs_reg_name(csh, reg_id);
-//        }
-//
-//        public String insnName() {
-//            return cs.cs_insn_name(csh, id);
-//        }
-//
-//        public String groupName(int id) {
-//            return cs.cs_group_name(csh, id);
-//        }
-//
-//        public boolean group(int gid) {
-//            return cs.cs_insn_group(csh, raw.getPointer(), gid) != 0;
-//        }
-
-    }
-
-//    private CsInsn[] fromArrayRaw(_cs_insn[] arr_raw) {
-//        CsInsn[] arr = new CsInsn[arr_raw.length];
-//
-//        for (int i = 0; i < arr_raw.length; i++) {
-//            arr[i] = new CsInsn(arr_raw[i], this.arch, ns.csh, cs, this.diet);
-//        }
-//
-//        return arr;
-//    }
 
     // Capstone API version
     public static final int CS_API_MAJOR = 3;
@@ -499,8 +314,6 @@ public class Capstone {
     public static final int CS_SUPPORT_DIET = CS_ARCH_ALL+1;	  // diet mode
     public static final int CS_SUPPORT_X86_REDUCE = CS_ARCH_ALL+2;  // X86 reduce mode
 
-    private static final CsInsn[] EMPTY_INSN = new CsInsn[0];
-
 
 //    // return combined API version
 //    public int version() {
@@ -534,12 +347,12 @@ public class Capstone {
 //            throw new RuntimeException("ERROR: Failed to set mode option");
 //        }
 //    }
-
-    // destructor automatically called at destroyed time.
-    protected void finalize() {
-        // FIXME: crashed on Ubuntu 14.04 64bit, OpenJDK java 1.6.0_33
-        // cs.cs_close(ns.handleRef);
-    }
+//
+//    // destructor automatically called at destroyed time.
+//    protected void finalize() {
+//        // FIXME: crashed on Ubuntu 14.04 64bit, OpenJDK java 1.6.0_33
+//        // cs.cs_close(ns.handleRef);
+//    }
 
     // destructor automatically called at destroyed time.
     public int close() {
@@ -554,14 +367,14 @@ public class Capstone {
      * @param address The address of the first machine code byte.
      * @return the array of successfully disassembled instructions, empty if no instruction could be disassembled.
      */
-    public ArrayList<_cs_insn> disasm(byte[] code, long address) {
+    public ArrayList<CsInsn> disasm(byte[] code, long address) {
         return disasm(code, address, 0);
     }
 
 
 
     static class PointerToInsn {
-        public ArrayList<_cs_insn> insn = new ArrayList<>();
+        public ArrayList<CsInsn> insn = new ArrayList<>();
     }
 
     public static String toString(byte[] a, int count) {

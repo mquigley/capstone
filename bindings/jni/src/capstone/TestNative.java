@@ -9,7 +9,7 @@ public class TestNative {
 
         native public int cs_open(int arch, int mode, int handle);
         native public long cs_disasm(long handle, byte[] code, long code_len,
-                                     long addr, long count, ArrayList<capstone.Capstone._cs_insn> insn);
+                                     long addr, long count, ArrayList<Capstone.CsInsn> insn);
         native public int cs_close(long handle);
         native public int cs_option(long handle, int option, long optionValue);
 
