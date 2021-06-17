@@ -68,7 +68,7 @@ public class X86 {
                     "type=" + stype +
                     (type == X86_OP_REG ? (", reg=" + reg) : "") +
                     (type == X86_OP_IMM ? (", reg=" + imm) : "") +
-                    (type == X86_OP_MEM ? (", reg=" + mem) : "") +
+                    (type == X86_OP_MEM ? (", reg=" + mem.toString(cs)) : "") +
                     ", size=" + size +
                     ", access=" + access +
                     ", avx_bcast=" + avx_bcast +
@@ -85,11 +85,11 @@ public class X86 {
         /// See X86_PREFIX_CS/SS/DS/ES/FS/GS above.
         /// prefix[2] indicates operand-size override (X86_PREFIX_OPSIZE)
         /// prefix[3] indicates address-size override (X86_PREFIX_ADDRSIZE)
-        public byte[] prefix;
+        public byte[] prefix = new byte[4];
         /// Instruction opcode, which can be from 1 to 4 bytes in size.
         /// This contains VEX opcode as well.
         /// An trailing opcode byte gets value 0 when irrelevant.
-        public byte[] opcode;
+        public byte[] opcode = new byte[4];
         /// REX prefix: only a non-zero value is relevant for x86_64
         public byte rex;
         /// Address size, which can be overridden with above prefix[5].
@@ -111,8 +111,6 @@ public class X86 {
         /// This can be formed from OR combination of X86_FPU_FLAGS_* symbols in x86.h
         public long eflags;
 
-        public byte op_count;
-
         ///< operands for this instruction.
         public Operand[] op;
 
@@ -131,7 +129,7 @@ public class X86 {
         public String toString() {
             Capstone cs = parent.cs;
             StringBuilder ops = new StringBuilder();
-            for (int i = 0; i < op_count; i++) {
+            for (int i = 0; i < op.length; i++) {
                 ops.append(i).append(": ").append(op[i].toString(cs)).append("\n");
             }
             return "X86Detail{" +
@@ -156,9 +154,7 @@ public class X86 {
                     ", dispSize=" + dispSize +
                     ", immOffset=" + immOffset +
                     ", immSize=" + immSize +
-                    ", op_count=" + op_count +
                     ", ops=\n" + ops +
-                    //", op=" + Capstone.toString(op, op_count) +
                     '}';
         }
     }
