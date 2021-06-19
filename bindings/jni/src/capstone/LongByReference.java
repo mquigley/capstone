@@ -19,4 +19,9 @@ public class LongByReference {
     public long getValue() {
         return value;
     }
+
+    @Override
+    public String toString() {
+        return "" + value;
+    }
 }

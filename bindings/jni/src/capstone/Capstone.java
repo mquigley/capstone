@@ -24,27 +24,17 @@ public class Capstone {
     native public String cs_reg_name(long csh, int id);
     native public String cs_insn_name (long handle, int id);
     native public String cs_group_name(long handle, int id);
-    // native public byte   cs_insn_group(long handle, _cs_insn insn, int id);
+    native public byte   cs_insn_group(long handle, CsInsn insn, int id);
 
 
-//    native public int cs_open(int arch, int mode, LongByReference handle);
-//    native public long cs_disasm(long handle, byte[] code, long code_len,
-//                                 long addr, long count, PointerToInsn insn);
-//    native public void cs_free(PointerToInsn p, long count);
-//    native public int cs_close(LongByReference handle);
-//    native public int cs_option(long handle, int option, long optionValue);
-//
-//    native public String cs_reg_name(long csh, int id);
 //    native public int cs_op_count(long csh, PointerToInsn insn, int type);
 //    native public int cs_op_index(long csh, PointerToInsn insn, int type, int index);
 //
-//    native public String cs_insn_name(long csh, int id);
-//    native public String cs_group_name(long csh, int id);
 //    native public byte cs_insn_group(long csh, PointerToInsn insn, int id);
 //    native public byte cs_reg_read(long csh, PointerToInsn insn, int id);
 //    native public byte cs_reg_write(long csh, PointerToInsn insn, int id);
-//    native public int cs_errno(long csh);
-//    native public int cs_version(IntByReference major, IntByReference minor);
+    native public int cs_errno(long csh);
+    native public int cs_version(IntByReference major, IntByReference minor);
 //    native public boolean cs_support(int query);
 
 
@@ -52,10 +42,13 @@ public class Capstone {
     // TODO 64-bit E:\dev\disasm\capstone\msvc\x64\Debug\
     public static void main(String[] args) {
         Capstone cs = new Capstone(Capstone.CS_ARCH_X86, Capstone.CS_MODE_16);
-        byte[] data = { 0x12, 0x2 }; //, 0x3, 0x4, 0x5, 6, 7, 8, 9, 10, 11, 12 };
+        // byte[] data = { 0x12, 0x2 }; //, 0x3, 0x4, 0x5, 6, 7, 8, 9, 10, 11, 12 };
+        byte[] data = { 0x22, 0x2, 0x68, 0x30, 0x50, 0x70 };
 
 
         ArrayList<CsInsn> list = new ArrayList<>();
+        System.out.println("Reg AX " + cs.cs_reg_name(cs.handle, X86_const.X86_REG_AX));
+        System.out.println("Reg Invalid " + cs.cs_reg_name(cs.handle, -50));
 
         long start = System.currentTimeMillis();
 
@@ -71,11 +64,15 @@ public class Capstone {
         for (CsInsn insn : list) {
             System.out.println(insn.toString());
         }
+
+        System.out.println("Instruction name: " + cs.cs_insn_name(cs.handle, X86_const.X86_INS_XLATB));
+        System.out.println("Group name: " + cs.cs_group_name(cs.handle, X86_const.X86_GRP_CALL));
+
+        if (true) cs.close();
         System.out.println("Goodbye.\n\n\n");
     }
 
 
-    private Capstone cs;
     public int arch;
     public int mode;
     private int syntax;
@@ -84,16 +81,18 @@ public class Capstone {
 
     public Capstone(int arch, int mode) {
         System.loadLibrary("jni");
-//        int version = cs.cs_version(null, null);
-//        if (version != (CS_API_MAJOR << 8) + CS_API_MINOR) {
-//            throw new RuntimeException("Different API version between core & binding (CS_ERR_VERSION)");
-//        }
+        IntByReference major = new IntByReference();
+        IntByReference minor = new IntByReference();
+        int version = cs_version(major, minor);
+        if (version != (CS_API_MAJOR << 8) + CS_API_MINOR) {
+            throw new RuntimeException("Different API version between core & binding (CS_ERR_VERSION)");
+        }
+        System.out.println("Version " + version + " major=" + major + " minor=" + minor);
 
         this.arch = arch;
         this.mode = mode;
-        cs = this;
         LongByReference handleRef = new LongByReference();
-        if (cs.cs_open(arch, mode, handleRef) != CS_ERR_OK) {
+        if (cs_open(arch, mode, handleRef) != CS_ERR_OK) {
             throw new RuntimeException("ERROR: Wrong arch or mode");
         }
         this.handle = handleRef.getValue();
@@ -112,7 +111,7 @@ public class Capstone {
      */
     public ArrayList<CsInsn> disasm(byte[] code, long address, long count) {
         ArrayList<CsInsn> list = new ArrayList<>();
-        long c = cs.cs_disasm(handle, code, code.length, address, count, list);
+        long c = cs_disasm(handle, code, code.length, address, count, list);
 //
 //        System.out.println("Disassembled " + c + " instructions");
 //        for (int i = 0; i < list.size(); i++) {
@@ -163,7 +162,7 @@ public class Capstone {
             return "_cs_insn{" +
                     "id=" + id +
                     ", mnemonic=" + mnemonic +
-                    ", op_str=" +op_str +
+                    ", op_str=" + op_str +
                     ", address=" + address +
                     ", size=" + size +
                     ", bytes=" + Capstone.toString(bytes, size) +
@@ -180,40 +179,44 @@ public class Capstone {
             this.parent = parent;
         }
 
-        // list of all implicit registers being read.
-        public short[] regs_read = new short[16];
-        public byte regs_read_count;
-        // list of all implicit registers being written.
-        public short[] regs_write = new short[20];
-        public byte regs_write_count;
-        // list of semantic groups this instruction belongs to.
-        public byte[] groups = new byte[8];
-        public byte groups_count;
+        /** list of all implicit registers being read. */
+        public short[] regs_read;
+        /** list of all implicit registers being written. */
+        public short[] regs_write;
+        /** list of semantic groups this instruction belongs to. */
+        public byte[] groups;
 
         public X86.X86Detail x86() { return (X86.X86Detail) this; }
 
         @Override
         public String toString() {
             Capstone cs = parent.cs;
-            StringBuilder regsReadText = new StringBuilder("[!!!!");
-            for (int i = 0; i < regs_read_count; i++) {
+            StringBuilder regsReadText = new StringBuilder("[");
+            for (int i = 0; i < regs_read.length; i++) {
                 if (i != 0) regsReadText.append(", ");
                 regsReadText.append(cs.cs_reg_name(cs.handle, regs_read[i]));
             }
             regsReadText.append("]");
-            StringBuilder regsWriteText = new StringBuilder("[!!!!");
-            for (int i = 0; i < regs_write_count; i++) {
+            StringBuilder regsWriteText = new StringBuilder("[");
+            for (int i = 0; i < regs_write.length; i++) {
                 if (i != 0) regsWriteText.append(", ");
                 regsWriteText.append(cs.cs_reg_name(cs.handle, regs_write[i]));
             }
             regsWriteText.append("]");
-            return "_cs_detail{\n" +
+            StringBuilder groupsText = new StringBuilder("[");
+            for (int i = 0; i < groups.length; i++) {
+                if (i != 0) regsWriteText.append(", ");
+                groupsText.append(cs.cs_group_name(cs.handle, groups[i] & 0xFF));
+            }
+            groupsText.append("]");
+
+            return "\n_cs_detail{" +
                     "regs_read=" + regsReadText +
-                    ", regs_read_count=" + regs_read_count +
+                    ", regs_read_count=" + regs_read.length +
                     ", regs_write=" + regsWriteText +
-                    ", regs_write_count=" + regs_write_count +
-                    ", groups=" + Capstone.toString(groups, groups_count) +
-                    ", groups_count=" + groups_count +
+                    ", regs_write_count=" + regs_write.length +
+                    ", groups=" + groupsText +
+                    ", groups_count=" + groups.length +
                     '}';
         }
     }
@@ -234,7 +237,7 @@ public class Capstone {
 
 
     // Capstone API version
-    public static final int CS_API_MAJOR = 3;
+    public static final int CS_API_MAJOR = 5;
     public static final int CS_API_MINOR = 0;
 
     // architectures
@@ -246,7 +249,10 @@ public class Capstone {
     public static final int CS_ARCH_SPARC = 5;
     public static final int CS_ARCH_SYSZ = 6;
     public static final int CS_ARCH_XCORE = 7;
-    public static final int CS_ARCH_MAX = 8;
+    public static final int CS_ARCH_M68K = 8;
+    public static final int CS_ARCH_TMS320C64X = 9;
+    public static final int CS_ARCH_M680X = 10;
+    public static final int CS_ARCH_MAX = 11;
     public static final int CS_ARCH_ALL = 0xFFFF; // query id for cs_support()
 
     // disasm mode
@@ -261,11 +267,22 @@ public class Capstone {
     public static final int CS_MODE_MICRO = 1 << 4;	  // MicroMips mode (Mips arch)
     public static final int CS_MODE_MIPS3 = 1 << 5;     // Mips III ISA
     public static final int CS_MODE_MIPS32R6 = 1 << 6;  // Mips32r6 ISA
-    public static final int CS_MODE_MIPSGP64 = 1 << 7;  // General Purpose Registers are 64-bit wide (MIPS arch)
+    public static final int CS_MODE_MIPS2 = 1 << 7;  // Mips II ISA
     public static final int CS_MODE_BIG_ENDIAN = 1 << 31; // big-endian mode
     public static final int CS_MODE_V9 = 1 << 4;	      // SparcV9 mode (Sparc arch)
     public static final int CS_MODE_MIPS32 = CS_MODE_32; // Mips32 ISA
     public static final int CS_MODE_MIPS64 = CS_MODE_64; // Mips64 ISA
+    public static final int CS_MODE_QPX = 1 << 4; // Quad Processing eXtensions mode (PPC)
+    public static final int CS_MODE_M680X_6301 = 1 << 1; // M680X Hitachi 6301,6303 mode
+    public static final int CS_MODE_M680X_6309 = 1 << 2; // M680X Hitachi 6309 mode
+    public static final int CS_MODE_M680X_6800 = 1 << 3; // M680X Motorola 6800,6802 mode
+    public static final int CS_MODE_M680X_6801 = 1 << 4; // M680X Motorola 6801,6803 mode
+    public static final int CS_MODE_M680X_6805 = 1 << 5; // M680X Motorola 6805 mode
+    public static final int CS_MODE_M680X_6808 = 1 << 6; // M680X Motorola 6808 mode
+    public static final int CS_MODE_M680X_6809 = 1 << 7; // M680X Motorola 6809 mode
+    public static final int CS_MODE_M680X_6811 = 1 << 8; // M680X Motorola/Freescale 68HC11 mode
+    public static final int CS_MODE_M680X_CPU12 = 1 << 9; // M680X Motorola/Freescale/NXP CPU12 mode
+    public static final int CS_MODE_M680X_HCS08 = 1 << 10; // M680X Freescale HCS08 mode
 
     // Capstone error
     public static final int CS_ERR_OK = 0;
@@ -302,6 +319,12 @@ public class Capstone {
     public static final int CS_OP_MEM = 3;
     public static final int CS_OP_FP  = 4;
 
+    // Common instruction operand access types - to be consistent across all architectures.
+    // It is possible to combine access types, for example: CS_AC_READ | CS_AC_WRITE
+    public static final int CS_AC_INVALID = 0;
+    public static final int CS_AC_READ = 1 << 0;
+    public static final int CS_AC_WRITE = 1 << 1;
+
     // Common instruction groups - to be consistent across all architectures.
     public static final int CS_GRP_INVALID = 0;  // uninitialized/invalid group.
     public static final int CS_GRP_JUMP    = 1;  // all jump instructions (conditional+direct+indirect jumps)
@@ -309,20 +332,20 @@ public class Capstone {
     public static final int CS_GRP_RET     = 3;  // all return instructions
     public static final int CS_GRP_INT     = 4;  // all interrupt instructions (int+syscall)
     public static final int CS_GRP_IRET    = 5;  // all interrupt return instructions
+    public static final int CS_GRP_PRIVILEGE = 6;  // all privileged instructions
 
     // Query id for cs_support()
     public static final int CS_SUPPORT_DIET = CS_ARCH_ALL+1;	  // diet mode
     public static final int CS_SUPPORT_X86_REDUCE = CS_ARCH_ALL+2;  // X86 reduce mode
 
 
-//    // return combined API version
-//    public int version() {
-//        return cs.cs_version(null, null);
-//    }
-//
+    // return combined API version
+    public int version() {
+        return cs_version(null, null);
+    }
+
 //    // set Assembly syntax
 //    public void setSyntax(int syntax) {
-//        if (true) return;
 //        if (cs.cs_option(ns.csh, CS_OPT_SYNTAX, new NativeLong(syntax)) == CS_ERR_OK) {
 //            this.syntax = syntax;
 //        } else {
@@ -347,16 +370,12 @@ public class Capstone {
 //            throw new RuntimeException("ERROR: Failed to set mode option");
 //        }
 //    }
-//
-//    // destructor automatically called at destroyed time.
-//    protected void finalize() {
-//        // FIXME: crashed on Ubuntu 14.04 64bit, OpenJDK java 1.6.0_33
-//        // cs.cs_close(ns.handleRef);
-//    }
 
     // destructor automatically called at destroyed time.
     public int close() {
-        return cs.cs_close(handle);
+        int retVal = cs_close(handle);
+        handle = 0;
+        return retVal;
     }
 
     /**
@@ -369,12 +388,6 @@ public class Capstone {
      */
     public ArrayList<CsInsn> disasm(byte[] code, long address) {
         return disasm(code, address, 0);
-    }
-
-
-
-    static class PointerToInsn {
-        public ArrayList<CsInsn> insn = new ArrayList<>();
     }
 
     public static String toString(byte[] a, int count) {

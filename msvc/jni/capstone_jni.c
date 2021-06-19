@@ -5,6 +5,7 @@
 #include <capstone/capstone.h>
 // #include <capstone.h>
 #include <stdlib.h>
+#include <string.h>
 
 // e:\dev\disasm\capstone\cs_priv.h
 #include "..\..\cs_priv.h"
@@ -18,8 +19,22 @@
 
 
 
+// jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
+#define FINDCLASS(variable, classname) jclass variable = (*env)->FindClass(env, classname); \
+    if (!variable) { printf("Failed to load " ## classname); goto ERROR; }
+// constructor = (*env)->GetMethodID(env, jclass_cs_insn, "<init>", "()V");	
+#define GETMETHOD(variable, jclass, name, signature) jmethodID variable = (*env)->GetMethodID(env, jclass, name, signature); \
+    if (!variable) { printf("Failed to find method " ## name ## signature); goto ERROR; }
+// javaObject = (*env)->NewObject(env, jclass_cs_insn, constructor);
+#define NEWOBJECT(variable, jclass, constructor, ...) jobject variable = (*env)->NewObject(env, jclass, constructor, __VA_ARGS__); \
+    if (!variable) { printf("Failed to allocate object jclass" ); goto ERROR; }
 
-static csh handle;
+// jfieldID field_d_regs_read = (*env)->GetFieldID(env, jclass_cs_detail, "regs_read", "[S");
+#define GETFIELD(variable, jclass, name, signature)  jfieldID variable = (*env)->GetFieldID(env, jclass, name, signature); \
+    if (!variable) { printf("Failed to find field " ## name ## signature); goto ERROR; }
+
+
+
 
 struct platform {
     cs_arch arch;
@@ -203,6 +218,8 @@ static void print_insn_detail(csh ud, cs_mode mode, cs_insn* ins)
     if (ins->detail == NULL)
 	return;
 
+    csh handle = ud;
+
     x86 = &(ins->detail->x86);
 
     print_string_hex("\tPrefix:", x86->prefix, 4);
@@ -356,6 +373,12 @@ static void print_insn_detail(csh ud, cs_mode mode, cs_insn* ins)
 	}
     }
 
+    printf("\tGroups count: %d\n", ins->detail->groups_count);
+    for (i = 0; i < ins->detail->groups_count; i++) {
+	auto g = ins->detail->groups[i];
+	printf("\t\tGroup %d %s", g, cs_group_name(handle, g));
+    }
+
     if (x86->eflags || x86->fpu_flags) {
 	for (i = 0; i < ins->detail->groups_count; i++) {
 	    if (ins->detail->groups[i] == X86_GRP_FPU) {
@@ -446,6 +469,8 @@ static void test()
     cs_insn *insn;
     int i;
     size_t count;
+    csh handle;
+
 
     for (i = 0; i < sizeof(platforms) / sizeof(platforms[0]); i++) {
 	cs_err err = cs_open(platforms[i].arch, platforms[i].mode, &handle);
@@ -485,85 +510,11 @@ static void test()
 	}
 
 	printf("\n");
-
-	cs_close(&handle);
     }
 }
 
 
 
-
-
-
-
-
-
-//
-///*
-//* Class:     com_lookout_NativeCodeImpl
-//* Method:    FLX_AD_Integrity
-//* Signature: ()Z
-//*/
-//JNIEXPORT jboolean JNICALL Java_com_lookout_NativeCodeImpl_FLX_1AD_1Integrity(JNIEnv *env, jobject obj)
-//{
-//    int eRet;
-//    jstring    filename = NULL;
-//    jclass    fileclass = NULL;
-//    jboolean  returnValue = JNI_FALSE;
-//    jmethodID  constructor = NULL;
-//    jmethodID  existsMethod = NULL;
-//    jobject    fileobject = NULL;
-//    int        i;
-//    char      szFilename[sizeof(szIntegrityPattern)] = { 0 };
-//    struct stat st;
-//
-//    // Original Java code used to generate obfuscated data
-//    //    String original = "/dev/socket/qemud";
-//    //    String obfuscated = "";
-//    //    int xor = 0x80;
-//    //    for (int i = 0; i < original.length(); i++) {
-//    //        int xored = original.charAt(i) ^ xor;
-//    //        if (++xor > 0x8F) {
-//    //            xor = 0x80;
-//    //        }
-//    //        if (obfuscated.length() > 0) {
-//    //            obfuscated += ", ";
-//    //        }
-//    //        obfuscated += "0x" + Integer.toHexString(xored & 0xff);
-//    //    }
-//
-//    int len = strlen(szIntegrityPattern);
-//    int xor = 0x80;
-//    for (i = 0; i < len; i++) {
-//	szFilename[i] = szIntegrityPattern[i] ^ xor;
-//	if (++xor > 0x8F) {
-//	    xor = 0x80;
-//	}
-//    }
-//    return stat(szFilename, &st) == 0;
-//
-//    filename = (*env)->NewStringUTF(env, szFilename);
-//    GOTO_ERROR_IF_TRUE(!filename, FLX_RET_ERROR);
-//
-//    fileclass = (*env)->FindClass(env, "java/io/File");
-//    GOTO_ERROR_IF_TRUE(!fileclass, FLX_RET_ERROR);
-//
-//    constructor = (*env)->GetMethodID(env, fileclass, "<init>", "(Ljava/lang/String;)V");
-//    GOTO_ERROR_IF_TRUE(!constructor, FLX_RET_ERROR);
-//
-//    existsMethod = (*env)->GetMethodID(env, fileclass, "exists", "()Z");
-//    GOTO_ERROR_IF_TRUE(!existsMethod, FLX_RET_ERROR);
-//
-//    fileobject = (*env)->NewObject(env, fileclass, constructor, filename);
-//    GOTO_ERROR_IF_TRUE(!fileobject, FLX_RET_ERROR);
-//
-//    // return new File("/dev/socket/qemud").exists();
-//    returnValue = (*env)->CallBooleanMethod(env, fileobject, existsMethod);
-//
-//Error:
-//
-//    return returnValue;
-//}
 
 
 
@@ -585,9 +536,7 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
 
     cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 
-    // Get a reference to this object's class
     jclass handleClass = (*env)->GetObjectClass(env, handleRef);
-    // Get the Method ID for method "callback", which takes a long and return void
     jmethodID setValueMethodId = (*env)->GetMethodID(env, handleClass, "setValue", "(J)V");
     if (NULL == setValueMethodId) {
 	printf("Could not find method\n");
@@ -595,13 +544,12 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
     }
 
     printf("Handle class %p methodID %p\n", handleClass, setValueMethodId);
-
-    printf("About to call method...\n");
     (*env)->CallVoidMethod(env, handleRef, setValueMethodId, (jlong)handle);
-    printf("Called method!\n");
 
-    //mConstructor = (*env)->GetMethodID(env, gFLXS_AD_RegistrationResultClass, "<init>", "(IILjava/lang/String;Ljava/lang/String;)V");
-    //GOTO_ERROR_IF_TRUE(!mConstructor, FLX_RET_ERROR);
+#if false
+    // cs_close(&handle);
+    Java_capstone_Capstone_cs_1close(env, thisObj, handle);
+#endif 
 
     return err;
 }
@@ -617,26 +565,79 @@ JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1reg_1name
 (JNIEnv* env, jobject thisObj, jlong handle, jint id)
 {
     const char* name = cs_reg_name(handle, id);
-
     jstring result = (*env)->NewStringUTF(env, name);
     return result;
 }
+
+
+// 
 /*
-* Class:     capstone_Capstone
-* Method:    cs_disasm
-* Signature: (JI)Ljava/lang/String;
-*/
-JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1reg_name
+ * Class:     capstone_Capstone
+ * Method:    cs_insn_name
+ * Signature: (JI)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1insn_1name
 (JNIEnv* env, jobject thisObj, jlong handle, jint id)
 {
-    const char* name = cs_reg_name(handle, id);
-    //int len = strlen(name);
-
-    //jbyteArray array = (*env)->NewByteArray(len);
-    //(*env)->SetByteArrayRegion(array, 0, len, (jbyte*)name);
-
+    const char* name = cs_insn_name(handle, id);
     jstring result = (*env)->NewStringUTF(env, name);
     return result;
+}
+
+// 
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_group_name
+ * Signature: (JI)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1group_1name
+(JNIEnv* env, jobject thisObj, jlong handle, jint id)
+{
+    const char* name = cs_group_name(handle, id);
+    jstring result = (*env)->NewStringUTF(env, name);
+    return result;
+}
+
+///*
+//* Class:     capstone_Capstone
+//* Method:    cs_disasm
+//* Signature: (JI)Ljava/lang/String;
+//*/
+//JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1reg_name
+//(JNIEnv* env, jobject thisObj, jlong handle, jint id)
+//{
+//    const char* name = cs_reg_name(handle, id);
+//
+//    jstring result = (*env)->NewStringUTF(env, name);
+//    return result;
+//}
+
+
+/*
+* Class:     capstone_Capstone
+* Method:    cs_version
+* Signature: (ILcapstone/IntByReference;,Lcapstone/IntByReference;)I
+*/
+JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1version
+(JNIEnv* env, jobject thisObj, jobject majorObj, jobject minorObj)
+{
+    int major = 0, minor = 0;
+    int version = cs_version(&major, &minor);
+
+    if (majorObj || minorObj) {
+	FINDCLASS(jclassIntByRef, "capstone/IntByReference");
+	GETMETHOD(method, jclassIntByRef, "setValue", "(I)V");
+
+	if (majorObj) {
+	    (*env)->CallVoidMethod(env, majorObj, method, (jint)major);
+	}
+	if (minorObj) {
+	    (*env)->CallVoidMethod(env, minorObj, method, (jint)minor);
+	}
+    }
+
+ ERROR:
+    return version;
 }
 
 
@@ -650,26 +651,6 @@ JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1reg_name
 
 
 
-
-
-
-
-
-
-
-// jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
-#define FINDCLASS(variable, classname) jclass variable = (*env)->FindClass(env, classname); \
-    if (!variable) { printf("Failed to load " ## classname); goto ERROR; }
-// constructor = (*env)->GetMethodID(env, jclass_cs_insn, "<init>", "()V");	
-#define GETMETHOD(variable, jclass, name, signature) jmethodID variable = (*env)->GetMethodID(env, jclass, name, signature); \
-    if (!variable) { printf("Failed to find method " ## name ## signature); goto ERROR; }
-// javaObject = (*env)->NewObject(env, jclass_cs_insn, constructor);
-#define NEWOBJECT(variable, jclass, constructor, ...) jobject variable = (*env)->NewObject(env, jclass, constructor, __VA_ARGS__); \
-    if (!variable) { printf("Failed to allocate object jclass" ); goto ERROR; }
-
-// jfieldID field_d_regs_read = (*env)->GetFieldID(env, jclass_cs_detail, "regs_read", "[S");
-#define GETFIELD(variable, jclass, name, signature)  jfieldID variable = (*env)->GetFieldID(env, jclass, name, signature); \
-    if (!variable) { printf("Failed to find field " ## name ## signature); goto ERROR; }
 
 
 
@@ -677,33 +658,36 @@ JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1reg_name
 static jbyteArray allocateJByteArray(JNIEnv* env, const uint8_t* src, const int size) {
     jbyteArray retVal = (*env)->NewByteArray(env, size);
     (*env)->SetByteArrayRegion(env, retVal, 0, size, src);
-    //jbyte* buf = (*env)->GetByteArrayElements(env, retVal, NULL);
-    //memcpy(buf, src, size);
-    printf("    allocateJByteArray: Created java byte array: .\n");
-    //(*env)->ReleaseByteArrayElements(env, retVal, buf, 0);
-
     return retVal;
 }
 
 
+/// <summary>
+///  Sets fields common to all detail objects.
+/// </summary>
+/// <param name="env"></param>
+/// <param name="cs"></param>
+/// <param name="ci"></param>
+/// <param name="jclass_cs_detail"></param>
+/// <param name="detailObject"></param>
 void disasmDetails(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jclass jclass_cs_detail, jobject detailObject) {
 
     GETFIELD(field_d_regs_read, jclass_cs_detail, "regs_read", "[S");
-    GETFIELD(field_d_regs_read_count, jclass_cs_detail, "regs_read_count", "B");
     GETFIELD(field_d_regs_write, jclass_cs_detail, "regs_write", "[S");
-    GETFIELD(field_d_regs_write_count, jclass_cs_detail, "regs_write_count", "B");
     GETFIELD(field_d_groups, jclass_cs_detail, "groups", "[B");
-    GETFIELD(field_d_groups_count, jclass_cs_detail, "groups_count", "B");
 
-    jshortArray shortarray = (jshortArray)(*env)->GetObjectField(env, detailObject, field_d_regs_read);
-    (*env)->SetShortArrayRegion(env, shortarray, 0, ci->detail->regs_read_count, ci->detail->regs_read);
-    (*env)->SetByteField(env, detailObject, field_d_regs_read_count, ci->detail->regs_read_count);
-    shortarray = (jshortArray)(*env)->GetObjectField(env, detailObject, field_d_regs_write);
-    (*env)->SetShortArrayRegion(env, shortarray, 0, ci->detail->regs_write_count, ci->detail->regs_write);
-    (*env)->SetByteField(env, detailObject, field_d_regs_write_count, ci->detail->regs_write_count);
-    jbyteArray jary = (jbyteArray)(*env)->GetObjectField(env, detailObject, field_d_groups);
-    (*env)->SetByteArrayRegion(env, jary, 0, ci->detail->groups_count, ci->detail->groups);
-    (*env)->SetByteField(env, detailObject, field_d_groups_count, ci->detail->groups_count);
+    // Allocate the arrays
+    jshortArray regsReadArray = (*env)->NewShortArray(env, ci->detail->regs_read_count);
+    (*env)->SetObjectField(env, detailObject, field_d_regs_read, regsReadArray);
+    jshortArray regsWriteArray = (*env)->NewShortArray(env, ci->detail->regs_write_count);
+    (*env)->SetObjectField(env, detailObject, field_d_regs_write, regsWriteArray);
+    jbyteArray groupsArray = (*env)->NewByteArray(env, ci->detail->groups_count);
+    (*env)->SetObjectField(env, detailObject, field_d_groups, groupsArray);
+
+    // Set the values inside the arrays
+    (*env)->SetShortArrayRegion(env, regsReadArray, 0, ci->detail->regs_read_count, ci->detail->regs_read);
+    (*env)->SetShortArrayRegion(env, regsWriteArray, 0, ci->detail->regs_write_count, ci->detail->regs_write);
+    (*env)->SetByteArrayRegion(env, groupsArray, 0, ci->detail->groups_count, ci->detail->groups);
 
 ERROR:
     ;
@@ -714,12 +698,9 @@ void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject cs
     FINDCLASS(jclass_x86, "capstone/X86$X86Detail");
     GETMETHOD(constructor, jclass_x86, "<init>", "(Lcapstone/Capstone$CsInsn;)V");
     NEWOBJECT(x86InsnObject, jclass_x86, constructor, csInsnObject);
-    printf("dd 1\n");
     (*env)->SetObjectField(env, csInsnObject, field_insnObject_detail, x86InsnObject);
-    printf("dd 2\n");
 
     disasmDetails(env, cs, ci, jclass_x86, x86InsnObject);
-    printf("dd 3\n");
 
     /*
 	public static class X86Detail extends Capstone.CsDetail {
@@ -759,15 +740,12 @@ void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject cs
     GETFIELD(field_sib_index, jclass_x86, "sib_index", "I");
     GETFIELD(field_sib_scale, jclass_x86, "sib_scale", "B");
     GETFIELD(field_sib_base, jclass_x86, "sib_base", "I");
-
     GETFIELD(field_xop_cc, jclass_x86, "xop_cc", "I");
-
     GETFIELD(field_sse_cc, jclass_x86, "sse_cc", "I");
     GETFIELD(field_avx_cc, jclass_x86, "avx_cc", "I");
     GETFIELD(field_avx_sae, jclass_x86, "avx_sae", "B");
     GETFIELD(field_avx_rm, jclass_x86, "avx_rm", "I");
     GETFIELD(field_eflags, jclass_x86, "eflags", "J");
-
     // GETFIELD(field_op_count, jclass_x86, "op_count", "B");
     GETFIELD(field_op, jclass_x86, "op", "[Lcapstone/X86$Operand;");
     GETFIELD(field_modrmOffset, jclass_x86, "modrmOffset", "B");
@@ -901,30 +879,22 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
 	return 0;
 
     struct cs_struct* ud = (cs_struct*)handle;
+    csh chandle = (csh)handle;
+
     printf("Called disasm... handle %llx ud->mode %d\n", handle, ud->mode);
 
-    // cs_err CAPSTONE_API cs_option(csh ud, cs_opt_type type, size_t value)
     printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
 	sizeof(cs_err), sizeof(csh), sizeof(cs_opt_type), sizeof(size_t), sizeof(cs_insn));
-    // test();
 
     jbyte* codeBytes = (*env)->GetByteArrayElements(env, code, NULL);
- //   printf("here\n");
-
- //   for (int i = 0; i < code_len; i++) {
-	//printf("0x%x ", codeBytes[i]);
- //   }
- //   printf("\n");
 
     cs_insn *insn = NULL; 
     
     // size_t CAPSTONE_API cs_disasm(csh ud, const uint8_t *buffer, size_t size, uint64_t offset, size_t count, cs_insn **insn)
     size_t actualCount = cs_disasm(handle, codeBytes, code_len, addr, 0, &insn);
-    struct cs_struct *cs = (struct cs_struct *)(uintptr_t)handle;
-
+    // struct cs_struct *cs = (struct cs_struct *)(uintptr_t)handle;
 
     printf("Disasm was count=%zd\n", actualCount);
-
 
     if (!actualCount) {
 	printf("****************\n");
@@ -940,9 +910,25 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
     for (j = 0; j < actualCount; j++) {
 	cs_insn* ci = &insn[j];
 	printf("%d 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
-	// print_insn_detail(handle, CS_MODE_16, &insn[j]);
+	print_insn_detail(handle, CS_MODE_16, &insn[j]);
 
+	// The registers read and modified are not filled in by default. ci->detail->regs_read is only set by the 
+	// instruction ID, not the operands
+	cs_regs regs_read, regs_write;
+	uint8_t regs_read_count, regs_write_count;
 
+	// Print out all registers accessed by this instruction (either implicit or explicit)
+	if (!cs_regs_access(chandle, ci, regs_read, &regs_read_count, regs_write, &regs_write_count)) {
+	    if (regs_read_count) {
+		ci->detail->regs_read_count = regs_read_count;
+		memcpy(ci->detail->regs_read, regs_read, regs_read_count * sizeof(*regs_read));
+	    }
+
+	    if (regs_write_count) {
+		ci->detail->regs_write_count = regs_write_count;
+		memcpy(ci->detail->regs_write, regs_write, regs_write_count * sizeof(*regs_write));
+	    }
+	}
 	    
 
 	//   Type Signature
@@ -1016,9 +1002,9 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
 	    //}
 
 	    // public UnionArch arch;
-	    switch (cs->arch) {
+	    switch (ud->arch) {
 	    case CS_ARCH_X86: {
-		disasmX86Details(env, cs, ci, csInsnObject, field_detail);
+		disasmX86Details(env, ud, ci, csInsnObject, field_detail);
 		break;
 	    }
 	    default:
@@ -1045,7 +1031,6 @@ ERROR:
     if (insn) cs_free(insn, count);
 
  //   printf("\n");
-
     return actualCount;
 }
 
@@ -1058,8 +1043,7 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1close
 (JNIEnv *env, jobject thisObj, jlong handle)
 {
     printf("Called close with handle 0x%llx...\n", handle);
-    csh* h = (csh*)handle;
-    cs_close(h);
+    cs_close(&handle);
     return 0;
 }
 
@@ -1072,5 +1056,7 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1option
 (JNIEnv * env, jobject thisObj, jlong handle, jint option, jlong optionValue)
 {
     printf("Called options...");
+    struct cs_struct* ud = (cs_struct*)handle;
+
     return 0;
 }

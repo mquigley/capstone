@@ -6,6 +6,8 @@ package capstone;
 import java.util.Arrays;
 import java.util.List;
 
+import static capstone.Capstone.CS_AC_READ;
+import static capstone.Capstone.CS_AC_WRITE;
 import static capstone.X86_const.*;
 
 // TODO -- THIS IS JNI VERSION
@@ -67,13 +69,23 @@ public class X86 {
             return "Operand{" +
                     "type=" + stype +
                     (type == X86_OP_REG ? (", reg=" + reg) : "") +
-                    (type == X86_OP_IMM ? (", reg=" + imm) : "") +
-                    (type == X86_OP_MEM ? (", reg=" + mem.toString(cs)) : "") +
+                    (type == X86_OP_IMM ? (", imm=" + imm) : "") +
+                    (type == X86_OP_MEM ? (", mem=" + mem.toString(cs)) : "") +
                     ", size=" + size +
-                    ", access=" + access +
+                    ", access=" + accessText(access) +
                     ", avx_bcast=" + avx_bcast +
                     ", avx_zero_opmask=" + avx_zero_opmask +
                     '}';
+        }
+
+        private String accessText(int access) {
+            switch (access) {
+                default:
+                    return "invalid";
+                case CS_AC_READ: return "READ";
+                case CS_AC_WRITE: return "WRITE";
+                case CS_AC_READ | CS_AC_WRITE: return "READ | WRITE";
+            }
         }
     }
 
@@ -133,7 +145,8 @@ public class X86 {
                 ops.append(i).append(": ").append(op[i].toString(cs)).append("\n");
             }
             return "X86Detail{" +
-                    "prefix=" + Arrays.toString(prefix) +
+                    super.toString() +
+                    " prefix=" + Arrays.toString(prefix) +
                     ", opcode=" + Arrays.toString(opcode) +
                     ", rex=" + rex +
                     ", addr_size=" + addr_size +
