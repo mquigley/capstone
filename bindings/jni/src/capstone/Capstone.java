@@ -12,6 +12,16 @@ import java.util.ArrayList;
 // Note the classpath pointing to the directory parent (cp ..)
 // "c:\Program Files\Java\jdk1.8.0_72\bin\javah.exe" -d .-v -cp .. capstone.Capstone
 
+
+// Next architectures:
+/*
+x86 is the architecture of choice for general-purpose computers,
+PowerPC is the architecture of choice for IBM mainframes,
+and ARM is being heavily used for embedded devices.
+I think that SPARC and MIPS also deserve a mention at least.
+ */
+
+
 public class Capstone {
 
     public long handle;
@@ -28,14 +38,19 @@ public class Capstone {
     native public byte   cs_insn_group(long handle, CsInsn insn, int id);
 
 
+    // This method is unnecessary; can be done in java
 //    native public int cs_op_count(long csh, PointerToInsn insn, int type);
 //    native public int cs_op_index(long csh, PointerToInsn insn, int type, int index);
-//
 //    native public byte cs_insn_group(long csh, PointerToInsn insn, int id);
+
+    // These methods we call inside the JNI
 //    native public byte cs_reg_read(long csh, PointerToInsn insn, int id);
 //    native public byte cs_reg_write(long csh, PointerToInsn insn, int id);
+
     native public int cs_errno(long csh);
     native public int cs_version(IntByReference major, IntByReference minor);
+
+    // This method should be unnecessary; we support it all
 //    native public boolean cs_support(int query);
 
 
@@ -114,25 +129,6 @@ public class Capstone {
     public ArrayList<CsInsn> disasm(byte[] code, long address, long count) {
         ArrayList<CsInsn> list = new ArrayList<>();
         long c = cs_disasm(handle, code, code.length, address, count, list);
-//
-//        System.out.println("Disassembled " + c + " instructions");
-//        for (int i = 0; i < list.size(); i++) {
-//            System.out.println("Idx " + i + " is " + list.get(i));
-//        }
-
-//        if (0 == c) {
-//            return EMPTY_INSN;
-//        }
-//
-//        Pointer p = insnRef.getValue();
-//        _cs_insn byref = new _cs_insn(p);
-//
-//        CsInsn[] allInsn = fromArrayRaw((_cs_insn[]) byref.toArray(c.intValue()));
-//
-//        // free allocated memory
-//        // cs.cs_free(p, c);
-//        // FIXME(danghvu): Can't free because memory is still inside CsInsn
-
         return list;
     }
 
