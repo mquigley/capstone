@@ -196,7 +196,8 @@ public class Capstone {
         public short[] regs_read;
         /** list of all implicit registers being written. */
         public short[] regs_write;
-        /** list of semantic groups this instruction belongs to. */
+        /** list of semantic groups this instruction belongs to. Warning: This is actually an unsigned byte, so one
+         * should use {@code groups[i] & 0xFF} to convert to an integer. */
         public byte[] groups;
 
         public X86.X86Detail x86() { return (X86.X86Detail) this; }
@@ -207,19 +208,19 @@ public class Capstone {
             StringBuilder regsReadText = new StringBuilder("[");
             for (int i = 0; i < regs_read.length; i++) {
                 if (i != 0) regsReadText.append(", ");
-                regsReadText.append(cs.cs_reg_name(cs.handle, regs_read[i]));
+                regsReadText.append(cs.regName(regs_read[i]));
             }
             regsReadText.append("]");
             StringBuilder regsWriteText = new StringBuilder("[");
             for (int i = 0; i < regs_write.length; i++) {
                 if (i != 0) regsWriteText.append(", ");
-                regsWriteText.append(cs.cs_reg_name(cs.handle, regs_write[i]));
+                regsWriteText.append(cs.regName(regs_write[i]));
             }
             regsWriteText.append("]");
             StringBuilder groupsText = new StringBuilder("[");
             for (int i = 0; i < groups.length; i++) {
                 if (i != 0) regsWriteText.append(", ");
-                groupsText.append(cs.cs_group_name(cs.handle, groups[i] & 0xFF));
+                groupsText.append(cs.groupName(groups[i] & 0xFF));
             }
             groupsText.append("]");
 

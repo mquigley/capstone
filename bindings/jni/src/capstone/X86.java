@@ -5,7 +5,6 @@ package capstone;
 
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.List;
 
 import static capstone.Capstone.CS_AC_READ;
 import static capstone.Capstone.CS_AC_WRITE;
@@ -13,6 +12,9 @@ import static capstone.X86_const.*;
 
 // TODO -- THIS IS JNI VERSION
 public class X86 {
+
+    /** Whether or not to print non-zero fields with {@link X86Detail#outDetails}. */
+    public static boolean printAllDetails = false;
 
     public static class OperandMem {
         public int segment;
@@ -172,175 +174,228 @@ public class X86 {
                     '}';
         }
 
-        boolean printAll = true;
+        @Override
         public void outDetails(PrintStream out) {
             Capstone cs = parent.cs;
             out.println("\tPrefix: " + Capstone.toString(prefix));
             out.println("\tOpcode: " + Capstone.toString(opcode));
-            if (rex != 0 || printAll) out.printf("\tRex: 0x%x\n", rex);
+            if (rex != 0 || printAllDetails) out.printf("\tRex: 0x%x\n", rex);
             out.printf("\taddr_size: %d\n", addr_size);
             out.printf("\tmodrm: 0x%x offset=%d\n", modrm, modrmOffset);
-            out.printf("\tsib: 0x%x\n", sib);
-            if (sib != 0 || printAll) out.printf("\t\tsib_base: %s sib_index: %s sib_scale: %d\n",
-                    cs.regName(sib_base), cs.regName(sib_index), sib_scale);
-            out.printf("\tdisp: 0x%x dispOffset: 0x%x dispSize: 0x%x\n", disp, dispOffset, dispSize);
-            if (xop_cc != 0 || printAll) out.printf("\txop_cc=0x%x\n", xop_cc);
-            if (sse_cc != 0 || printAll) out.printf("\tsse_cc=0x%x\n", sse_cc);
-            if (avx_cc != 0 || printAll) out.printf("\tavx_cc=0x%x\n", avx_cc);
-            if (avx_sae != 0 || printAll) out.printf("\tavx_sae=0x%x\n", avx_sae);
-            if (avx_rm != 0 || printAll) out.printf("\tavx_rm=0x%x\n", avx_rm);
-            eflags;
-            immOffset;
-            immSize;
+            if (immSize != 0 || printAllDetails) out.printf("\timm_offset: %d imm_size: %d\n", immOffset, immSize);
+            if (sib != 0 || printAllDetails) {
+                out.printf("\tsib: 0x%x\n", sib);
+                out.printf("\t\tsib_base: %s sib_index: %s sib_scale: %d\n",
+                        cs.regName(sib_base), cs.regName(sib_index), sib_scale);
+            }
+            if (dispSize > 0 || printAllDetails) out.printf("\tdisp: 0x%x dispOffset: 0x%x dispSize: 0x%x\n", disp, dispOffset, dispSize);
+            if (xop_cc != 0 || printAllDetails) out.printf("\txop_cc=0x%x\n", xop_cc);
+            if (sse_cc != 0 || printAllDetails) out.printf("\tsse_cc=0x%x\n", sse_cc);
+            if (avx_cc != 0 || printAllDetails) out.printf("\tavx_cc=0x%x\n", avx_cc);
+            if (avx_sae != 0 || printAllDetails) out.printf("\tavx_sae=0x%x\n", avx_sae);
+            if (avx_rm != 0 || printAllDetails) out.printf("\tavx_rm=0x%x\n", avx_rm);
+
+            // Operands
+            out.printf("\top_count: %d\n", op.length);
+            for (int i = 0; i < op.length; i++) {
+                Operand op = this.op[i];
+
+                switch (op.type) {
+                    case X86_OP_REG: out.printf("\t\toperand[%d].type: REG = %s\n", i, cs.regName(op.reg)); break;
+                    case X86_OP_IMM: out.printf("\t\toperand[%d].type: IMM = 0x%x\n", i, op.imm); break;
+                    case X86_OP_MEM:
+                        out.printf("\t\toperand[%d].type: MEM\n", i);
+                        if (op.mem.segment != X86_REG_INVALID) out.printf("\t\t\tsegment: REG = %s\n", cs.regName(op.mem.segment));
+                        if (op.mem.base    != X86_REG_INVALID) out.printf("\t\t\tbase: REG = %s\n",    cs.regName(op.mem.base));
+                        if (op.mem.index   != X86_REG_INVALID) out.printf("\t\t\tindex: REG = %s\n",   cs.regName(op.mem.index));
+                        if (op.mem.scale   != 1)               out.printf("\t\t\tscale: %d\n",         op.mem.scale);
+                        if (op.mem.disp    != 0)               out.printf("\t\t\tdisplacement: 0x%x\n",op.mem.disp);
+                        break;
+                    default: out.printf("\t\top[%d].type: INVALID\n", i);
+                }
+
+                // AVX broadcast type
+                if (op.avx_bcast != X86_AVX_BCAST_INVALID)
+                    out.printf("\t\toperand[%d].avx_bcast: %d\n", i, op.avx_bcast);
+
+                // AVX zero opmask {z}
+                if (op.avx_zero_opmask)
+                    out.printf("\t\toperand[%d].avx_zero_opmask: TRUE\n", i);
+
+                out.printf("\t\toperand[%d].size: %d\n", i, op.size);
+
+                switch (op.access) {
+                    case 0: break;
+                    case CS_AC_READ: out.printf("\t\toperand[%d].access: READ\n", i); break;
+                    case CS_AC_WRITE: out.printf("\t\toperand[%d].access: WRITE\n", i); break;
+                    case CS_AC_READ | CS_AC_WRITE: out.printf("\t\toperand[%d].access: READ | WRITE\n", i); break;
+                    default: out.printf("\t\toperand[%d].access: INVALID %d\n", i, op.access); break;
+                }
+
+            }
+
+            if (regs_read.length != 0) {
+                out.printf("\tRegisters read:");
+                for (int i = 0; i < regs_read.length; i++) {
+                    out.printf(" %s", cs.regName(regs_read[i]));
+                }
+                out.printf("\n");
+            }
+
+            if (regs_write.length != 0) {
+                out.printf("\tRegisters modified:");
+                for (int i = 0; i < regs_write.length; i++) {
+                    out.printf(" %s", cs.regName(regs_write[i]));
+                }
+                out.printf("\n");
+            }
+
+            // Groups
+            out.printf("\tGroups count: %d\n", groups.length);
+            for (int i = 0; i < groups.length; i++) {
+                int g = groups[i] & 0xFF;
+                out.printf("\t\tGroup %d %s\n", g, cs.groupName(g));
+            }
+
+            // Flags
+            boolean isFpu = false;
+            if (eflags != 0) {
+                for (int i = 0; i < groups.length; i++) {
+                    if ((groups[i] & 0xFF) == X86_GRP_FPU) {
+                        isFpu = true;
+                        break;
+                    }
+                }
+                if (isFpu)
+                    out.printf("\tfpu_flags:");
+                else
+                    out.printf("\teflags:");
+
+                for (long flag = 0; flag <= 63; flag++) {
+                    long flagValue = (1L << flag);
+                    if ((eflags & flagValue) != 0L) {
+                        out.printf(" %s", isFpu ? get_fpu_name(flagValue) : get_eflag_name(flagValue));
+                    }
+                }
+                out.println("");
+            }
+            /*
+                if (x86->eflags || x86->fpu_flags) {
+	for (i = 0; i < ins->detail->groups_count; i++) {
+	    if (ins->detail->groups[i] == X86_GRP_FPU) {
+		printf("\tFPU_FLAGS:");
+		for (i = 0; i <= 63; i++)
+		    if (x86->fpu_flags & ((uint64_t)1 << i)) {
+			printf(" %s", get_fpu_flag_name((uint64_t)1 << i));
+		    }
+		printf("\n");
+		break;
+	    }
+	}
+
+	if (i == ins->detail->groups_count) {
+	    printf("\tEFLAGS:");
+	    for (i = 0; i <= 63; i++)
+		if (x86->eflags & ((uint64_t)1 << i)) {
+		    printf(" %s", get_eflag_name((uint64_t)1 << i));
+		}
+	    printf("\n");
+	}
+    }
+             */
         }
     }
 
 
     static String get_eflag_name(long flag)
     {
-        switch (flag) {
-            default:
-                return "";
-            case X86_EFLAGS_UNDEFINED_OF:
-                return "UNDEF_OF";
-            case X86_EFLAGS_UNDEFINED_SF:
-                return "UNDEF_SF";
-            case X86_EFLAGS_UNDEFINED_ZF:
-                return "UNDEF_ZF";
-            case X86_EFLAGS_MODIFY_AF:
-                return "MOD_AF";
-            case X86_EFLAGS_UNDEFINED_PF:
-                return "UNDEF_PF";
-            case X86_EFLAGS_MODIFY_CF:
-                return "MOD_CF";
-            case X86_EFLAGS_MODIFY_SF:
-                return "MOD_SF";
-            case X86_EFLAGS_MODIFY_ZF:
-                return "MOD_ZF";
-            case X86_EFLAGS_UNDEFINED_AF:
-                return "UNDEF_AF";
-            case X86_EFLAGS_MODIFY_PF:
-                return "MOD_PF";
-            case X86_EFLAGS_UNDEFINED_CF:
-                return "UNDEF_CF";
-            case X86_EFLAGS_MODIFY_OF:
-                return "MOD_OF";
-            case X86_EFLAGS_RESET_OF:
-                return "RESET_OF";
-            case X86_EFLAGS_RESET_CF:
-                return "RESET_CF";
-            case X86_EFLAGS_RESET_DF:
-                return "RESET_DF";
-            case X86_EFLAGS_RESET_IF:
-                return "RESET_IF";
-            case X86_EFLAGS_TEST_OF:
-                return "TEST_OF";
-            case X86_EFLAGS_TEST_SF:
-                return "TEST_SF";
-            case X86_EFLAGS_TEST_ZF:
-                return "TEST_ZF";
-            case X86_EFLAGS_TEST_PF:
-                return "TEST_PF";
-            case X86_EFLAGS_TEST_CF:
-                return "TEST_CF";
-            case X86_EFLAGS_RESET_SF:
-                return "RESET_SF";
-            case X86_EFLAGS_RESET_AF:
-                return "RESET_AF";
-            case X86_EFLAGS_RESET_TF:
-                return "RESET_TF";
-            case X86_EFLAGS_RESET_NT:
-                return "RESET_NT";
-            case X86_EFLAGS_PRIOR_OF:
-                return "PRIOR_OF";
-            case X86_EFLAGS_PRIOR_SF:
-                return "PRIOR_SF";
-            case X86_EFLAGS_PRIOR_ZF:
-                return "PRIOR_ZF";
-            case X86_EFLAGS_PRIOR_AF:
-                return "PRIOR_AF";
-            case X86_EFLAGS_PRIOR_PF:
-                return "PRIOR_PF";
-            case X86_EFLAGS_PRIOR_CF:
-                return "PRIOR_CF";
-            case X86_EFLAGS_PRIOR_TF:
-                return "PRIOR_TF";
-            case X86_EFLAGS_PRIOR_IF:
-                return "PRIOR_IF";
-            case X86_EFLAGS_PRIOR_DF:
-                return "PRIOR_DF";
-            case X86_EFLAGS_TEST_NT:
-                return "TEST_NT";
-            case X86_EFLAGS_TEST_DF:
-                return "TEST_DF";
-            case X86_EFLAGS_RESET_PF:
-                return "RESET_PF";
-            case X86_EFLAGS_PRIOR_NT:
-                return "PRIOR_NT";
-            case X86_EFLAGS_MODIFY_TF:
-                return "MOD_TF";
-            case X86_EFLAGS_MODIFY_IF:
-                return "MOD_IF";
-            case X86_EFLAGS_MODIFY_DF:
-                return "MOD_DF";
-            case X86_EFLAGS_MODIFY_NT:
-                return "MOD_NT";
-            case X86_EFLAGS_MODIFY_RF:
-                return "MOD_RF";
-            case X86_EFLAGS_SET_CF:
-                return "SET_CF";
-            case X86_EFLAGS_SET_DF:
-                return "SET_DF";
-            case X86_EFLAGS_SET_IF:
-                return "SET_IF";
-        }
+        if (flag == X86_EFLAGS_MODIFY_AF) return "MODIFY_AF";
+        if (flag == X86_EFLAGS_MODIFY_CF) return "MODIFY_CF";
+        if (flag == X86_EFLAGS_MODIFY_SF) return "MODIFY_SF";
+        if (flag == X86_EFLAGS_MODIFY_ZF) return "MODIFY_ZF";
+        if (flag == X86_EFLAGS_MODIFY_PF) return "MODIFY_PF";
+        if (flag == X86_EFLAGS_MODIFY_OF) return "MODIFY_OF";
+        if (flag == X86_EFLAGS_MODIFY_TF) return "MODIFY_TF";
+        if (flag == X86_EFLAGS_MODIFY_IF) return "MODIFY_IF";
+        if (flag == X86_EFLAGS_MODIFY_DF) return "MODIFY_DF";
+        if (flag == X86_EFLAGS_MODIFY_NT) return "MODIFY_NT";
+        if (flag == X86_EFLAGS_MODIFY_RF) return "MODIFY_RF";
+        if (flag == X86_EFLAGS_PRIOR_OF) return "PRIOR_OF";
+        if (flag == X86_EFLAGS_PRIOR_SF) return "PRIOR_SF";
+        if (flag == X86_EFLAGS_PRIOR_ZF) return "PRIOR_ZF";
+        if (flag == X86_EFLAGS_PRIOR_AF) return "PRIOR_AF";
+        if (flag == X86_EFLAGS_PRIOR_PF) return "PRIOR_PF";
+        if (flag == X86_EFLAGS_PRIOR_CF) return "PRIOR_CF";
+        if (flag == X86_EFLAGS_PRIOR_TF) return "PRIOR_TF";
+        if (flag == X86_EFLAGS_PRIOR_IF) return "PRIOR_IF";
+        if (flag == X86_EFLAGS_PRIOR_DF) return "PRIOR_DF";
+        if (flag == X86_EFLAGS_PRIOR_NT) return "PRIOR_NT";
+        if (flag == X86_EFLAGS_RESET_OF) return "RESET_OF";
+        if (flag == X86_EFLAGS_RESET_CF) return "RESET_CF";
+        if (flag == X86_EFLAGS_RESET_DF) return "RESET_DF";
+        if (flag == X86_EFLAGS_RESET_IF) return "RESET_IF";
+        if (flag == X86_EFLAGS_RESET_SF) return "RESET_SF";
+        if (flag == X86_EFLAGS_RESET_AF) return "RESET_AF";
+        if (flag == X86_EFLAGS_RESET_TF) return "RESET_TF";
+        if (flag == X86_EFLAGS_RESET_NT) return "RESET_NT";
+        if (flag == X86_EFLAGS_RESET_PF) return "RESET_PF";
+        if (flag == X86_EFLAGS_SET_CF) return "SET_CF";
+        if (flag == X86_EFLAGS_SET_DF) return "SET_DF";
+        if (flag == X86_EFLAGS_SET_IF) return "SET_IF";
+        if (flag == X86_EFLAGS_TEST_OF) return "TEST_OF";
+        if (flag == X86_EFLAGS_TEST_SF) return "TEST_SF";
+        if (flag == X86_EFLAGS_TEST_ZF) return "TEST_ZF";
+        if (flag == X86_EFLAGS_TEST_PF) return "TEST_PF";
+        if (flag == X86_EFLAGS_TEST_CF) return "TEST_CF";
+        if (flag == X86_EFLAGS_TEST_NT) return "TEST_NT";
+        if (flag == X86_EFLAGS_TEST_DF) return "TEST_DF";
+        if (flag == X86_EFLAGS_UNDEFINED_OF) return "UNDEFINED_OF";
+        if (flag == X86_EFLAGS_UNDEFINED_SF) return "UNDEFINED_SF";
+        if (flag == X86_EFLAGS_UNDEFINED_ZF) return "UNDEFINED_ZF";
+        if (flag == X86_EFLAGS_UNDEFINED_PF) return "UNDEFINED_PF";
+        if (flag == X86_EFLAGS_UNDEFINED_AF) return "UNDEFINED_AF";
+        if (flag == X86_EFLAGS_UNDEFINED_CF) return "UNDEFINED_CF";
+        if (flag == X86_EFLAGS_RESET_RF) return "RESET_RF";
+        if (flag == X86_EFLAGS_TEST_RF) return "TEST_RF";
+        if (flag == X86_EFLAGS_TEST_IF) return "TEST_IF";
+        if (flag == X86_EFLAGS_TEST_TF) return "TEST_TF";
+        if (flag == X86_EFLAGS_TEST_AF) return "TEST_AF";
+        if (flag == X86_EFLAGS_RESET_ZF) return "RESET_ZF";
+        if (flag == X86_EFLAGS_SET_OF) return "SET_OF";
+        if (flag == X86_EFLAGS_SET_SF) return "SET_SF";
+        if (flag == X86_EFLAGS_SET_ZF) return "SET_ZF";
+        if (flag == X86_EFLAGS_SET_AF) return "SET_AF";
+        if (flag == X86_EFLAGS_SET_PF) return "SET_PF";
+        if (flag == X86_EFLAGS_RESET_0F) return "RESET_0F";
+        if (flag == X86_EFLAGS_RESET_AC) return "RESET_AC";
+
+        return "";
     }
 
-    static const char* get_fpu_flag_name(uint64_t flag)
+    static String get_fpu_name(long flag)
     {
-        switch (flag) {
-            default:
-                return NULL;
-            case X86_FPU_FLAGS_MODIFY_C0:
-                return "MOD_C0";
-            case X86_FPU_FLAGS_MODIFY_C1:
-                return "MOD_C1";
-            case X86_FPU_FLAGS_MODIFY_C2:
-                return "MOD_C2";
-            case X86_FPU_FLAGS_MODIFY_C3:
-                return "MOD_C3";
-            case X86_FPU_FLAGS_RESET_C0:
-                return "RESET_C0";
-            case X86_FPU_FLAGS_RESET_C1:
-                return "RESET_C1";
-            case X86_FPU_FLAGS_RESET_C2:
-                return "RESET_C2";
-            case X86_FPU_FLAGS_RESET_C3:
-                return "RESET_C3";
-            case X86_FPU_FLAGS_SET_C0:
-                return "SET_C0";
-            case X86_FPU_FLAGS_SET_C1:
-                return "SET_C1";
-            case X86_FPU_FLAGS_SET_C2:
-                return "SET_C2";
-            case X86_FPU_FLAGS_SET_C3:
-                return "SET_C3";
-            case X86_FPU_FLAGS_UNDEFINED_C0:
-                return "UNDEF_C0";
-            case X86_FPU_FLAGS_UNDEFINED_C1:
-                return "UNDEF_C1";
-            case X86_FPU_FLAGS_UNDEFINED_C2:
-                return "UNDEF_C2";
-            case X86_FPU_FLAGS_UNDEFINED_C3:
-                return "UNDEF_C3";
-            case X86_FPU_FLAGS_TEST_C0:
-                return "TEST_C0";
-            case X86_FPU_FLAGS_TEST_C1:
-                return "TEST_C1";
-            case X86_FPU_FLAGS_TEST_C2:
-                return "TEST_C2";
-            case X86_FPU_FLAGS_TEST_C3:
-                return "TEST_C3";
-        }
+        if (flag == X86_FPU_FLAGS_MODIFY_C0) return "FLAGS_MODIFY_C0";
+        if (flag == X86_FPU_FLAGS_MODIFY_C1) return "FLAGS_MODIFY_C1";
+        if (flag == X86_FPU_FLAGS_MODIFY_C2) return "FLAGS_MODIFY_C2";
+        if (flag == X86_FPU_FLAGS_MODIFY_C3) return "FLAGS_MODIFY_C3";
+        if (flag == X86_FPU_FLAGS_RESET_C0) return "FLAGS_RESET_C0";
+        if (flag == X86_FPU_FLAGS_RESET_C1) return "FLAGS_RESET_C1";
+        if (flag == X86_FPU_FLAGS_RESET_C2) return "FLAGS_RESET_C2";
+        if (flag == X86_FPU_FLAGS_RESET_C3) return "FLAGS_RESET_C3";
+        if (flag == X86_FPU_FLAGS_SET_C0) return "FLAGS_SET_C0";
+        if (flag == X86_FPU_FLAGS_SET_C1) return "FLAGS_SET_C1";
+        if (flag == X86_FPU_FLAGS_SET_C2) return "FLAGS_SET_C2";
+        if (flag == X86_FPU_FLAGS_SET_C3) return "FLAGS_SET_C3";
+        if (flag == X86_FPU_FLAGS_UNDEFINED_C0) return "FLAGS_UNDEFINED_C0";
+        if (flag == X86_FPU_FLAGS_UNDEFINED_C1) return "FLAGS_UNDEFINED_C1";
+        if (flag == X86_FPU_FLAGS_UNDEFINED_C2) return "FLAGS_UNDEFINED_C2";
+        if (flag == X86_FPU_FLAGS_UNDEFINED_C3) return "FLAGS_UNDEFINED_C3";
+        if (flag == X86_FPU_FLAGS_TEST_C0) return "FLAGS_TEST_C0";
+        if (flag == X86_FPU_FLAGS_TEST_C1) return "FLAGS_TEST_C1";
+        if (flag == X86_FPU_FLAGS_TEST_C2) return "FLAGS_TEST_C2";
+        if (flag == X86_FPU_FLAGS_TEST_C3) return "FLAGS_TEST_C3";
+
+        return "";
     }
 }
+
