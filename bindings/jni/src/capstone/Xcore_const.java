@@ -1,16 +1,13 @@
 // For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT
 package capstone;
 
+@SuppressWarnings("unused")
 public class Xcore_const {
-
-	// Operand type for instruction's operands
 
 	public static final int XCORE_OP_INVALID = 0;
 	public static final int XCORE_OP_REG = 1;
 	public static final int XCORE_OP_IMM = 2;
 	public static final int XCORE_OP_MEM = 3;
-
-	// XCore registers
 
 	public static final int XCORE_REG_INVALID = 0;
 	public static final int XCORE_REG_CP = 1;
@@ -29,8 +26,6 @@ public class Xcore_const {
 	public static final int XCORE_REG_R9 = 14;
 	public static final int XCORE_REG_R10 = 15;
 	public static final int XCORE_REG_R11 = 16;
-
-	// pseudo registers
 	public static final int XCORE_REG_PC = 17;
 	public static final int XCORE_REG_SCP = 18;
 	public static final int XCORE_REG_SSR = 19;
@@ -41,8 +36,6 @@ public class Xcore_const {
 	public static final int XCORE_REG_KSP = 24;
 	public static final int XCORE_REG_ID = 25;
 	public static final int XCORE_REG_ENDING = 26;
-
-	// XCore instruction
 
 	public static final int XCORE_INS_INVALID = 0;
 	public static final int XCORE_INS_ADD = 1;
@@ -167,11 +160,7 @@ public class Xcore_const {
 	public static final int XCORE_INS_ZEXT = 120;
 	public static final int XCORE_INS_ENDING = 121;
 
-	// Group of XCore instructions
-
 	public static final int XCORE_GRP_INVALID = 0;
-
-	// Generic groups
 	public static final int XCORE_GRP_JUMP = 1;
 	public static final int XCORE_GRP_ENDING = 2;
 }
