@@ -1,6 +1,7 @@
 // For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT
 package capstone;
 
+@SuppressWarnings("unused")
 public class Sparc_const {
 
 	public static final int SPARC_CC_INVALID = 0;

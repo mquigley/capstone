@@ -1,6 +1,7 @@
 // For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT
 package capstone;
 
+@SuppressWarnings("unused")
 public class M680x_const {
 	public static final int M680X_OPERAND_COUNT = 9;
 

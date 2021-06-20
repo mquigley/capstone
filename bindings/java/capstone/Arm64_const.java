@@ -1,6 +1,7 @@
 // For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT
 package capstone;
 
+@SuppressWarnings("unused")
 public class Arm64_const {
 
 	public static final int ARM64_SFT_INVALID = 0;

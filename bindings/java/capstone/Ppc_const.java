@@ -1,6 +1,7 @@
 // For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT
 package capstone;
 
+@SuppressWarnings("unused")
 public class Ppc_const {
 
 	public static final int PPC_BC_INVALID = 0;

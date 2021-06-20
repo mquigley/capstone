@@ -1,6 +1,7 @@
 // For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT
 package capstone;
 
+@SuppressWarnings("unused")
 public class Mips_const {
 
 	public static final int MIPS_OP_INVALID = 0;

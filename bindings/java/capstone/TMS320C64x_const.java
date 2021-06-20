@@ -1,6 +1,7 @@
 // For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT
 package capstone;
 
+@SuppressWarnings("unused")
 public class TMS320C64x_const {
 
 	public static final int TMS320C64X_OP_INVALID = 0;

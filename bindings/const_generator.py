@@ -9,9 +9,10 @@ include = [ 'arm.h', 'arm64.h', 'm68k.h', 'mips.h', 'x86.h', 'ppc.h', 'sparc.h',
 
 template = {
     'java': {
-            'header': "// For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT\npackage capstone;\n\npublic class %s_const {\n",
+            'header': "// For Capstone Engine. AUTO-GENERATED FILE, DO NOT EDIT\npackage capstone;\n\n@SuppressWarnings(\"unused\")\npublic class %s_const {\n",
             'footer': "}",
             'line_format': '\tpublic static final int %s = %s;\n',
+            'long_line_format': '\tpublic static final long %s = %s;\n',
             'out_file': './java/capstone/%s_const.java',
             # prefixes for constant filenames of all archs - case sensitive
             'arm.h': 'Arm',
@@ -26,6 +27,7 @@ template = {
             'tms320c64x.h': 'TMS320C64x',
             'm680x.h': 'M680x',
             'evm.h': 'Evm',
+            'mos65xx.h': 'Mos65xx',
             'comment_open': '\t//',
             'comment_close': '',
         },
@@ -124,8 +126,15 @@ def gen(lang):
                 if not t or t.startswith('//'): continue
                 # hacky: remove type cast (uint64_t)
                 t = t.replace('(uint64_t)', '')
-                t = re.sub(r'\((\d+)ULL << (\d+)\)', r'\1 << \2', t)    # (1ULL<<1) to 1 << 1
-                f = re.split('\s+', t)
+                # If we need to preserve the long constant, replace 1ULL with 1L, else replace 1ULL with 1
+                if templ['long_line_format'] and re.search(r'\((\d+)ULL', t):
+                    t = re.sub(r'\((\d+)ULL << (\d+)\)', r'\1L << \2', t)    # (1ULL<<1) to 1L << 1
+                    fmt = templ['long_line_format']
+                    # print("Warning: ULL in %s" % line)
+                else:
+                    t = re.sub(r'\((\d+)ULL << (\d+)\)', r'\1 << \2', t)    # (1ULL<<1) to 1 << 1
+                    fmt = templ['line_format']
+                f = re.split('\\s+', t)
 
                 if f[0].startswith(prefix.upper()):
                     if len(f) > 1 and f[1] not in ('//', '///<', '='):
@@ -139,7 +148,7 @@ def gen(lang):
 
                     try:
                         count = int(rhs) + 1
-                        if (count == 1):
+                        if count == 1:
                             outfile.write(("\n").encode("utf-8"))
                     except ValueError:
                         if lang == 'ocaml':
@@ -150,7 +159,8 @@ def gen(lang):
                             if rhs[0].isalpha():
                                 rhs = '_' + rhs
 
-                    outfile.write((templ['line_format'] %(f[0].strip(), rhs)).encode("utf-8"))
+                    lhs = f[0].strip()
+                    outfile.write((fmt % (lhs, rhs)).encode("utf-8"))
 
         outfile.write((templ['footer']).encode("utf-8"))
         outfile.close()
