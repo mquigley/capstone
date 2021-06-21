@@ -2,6 +2,7 @@ package capstone;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Date;
 
 // MLQ - To build header files:
 // cd E:\dev\capstone_test\jni\src\capstone
@@ -12,6 +13,10 @@ import java.util.ArrayList;
 // Note the classpath pointing to the directory parent (cp ..)
 // "c:\Program Files\Java\jdk1.8.0_72\bin\javah.exe" -d .-v -cp .. capstone.Capstone
 
+// mac
+// https://gist.github.com/DmitrySoshnikov/8b1599a5197b5469c8cc07025f600fdb
+// gcc -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/darwin/" -o libcapstonejni.jnilib -Wno-pointer-sign -shared -L../.. -lcapstone  capstone_jni.c
+// /usr/libexec/java_home -V
 
 // Next architectures:
 /*
@@ -97,6 +102,8 @@ public class Capstone {
     private boolean diet;
 
     public Capstone(int arch, int mode) {
+        System.out.println("Start at " + new Date());
+        //System.load("/Users/matt.quigley/dev/projects/capstone/bindings/jnic/jni.jnilib");
         System.loadLibrary("jni");
         IntByReference major = new IntByReference();
         IntByReference minor = new IntByReference();
