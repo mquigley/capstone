@@ -101,7 +101,7 @@ public class Capstone {
     private boolean diet;
 
     public Capstone(int arch, int mode) {
-        System.loadLibrary("jni");
+        System.loadLibrary("capstonejni");
         IntByReference major = new IntByReference();
         IntByReference minor = new IntByReference();
         int version = cs_version(major, minor);

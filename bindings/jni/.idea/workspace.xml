@@ -2,46 +2,12 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="5d4ac8ec-7709-4939-80f9-479805fccb53" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/libraries/jna_5_3_11.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/main/main.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/src/TestX86.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/test.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/jna_5_3_1.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/jna_5_3_1.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/uiDesigner.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README" beforeDir="false" afterPath="$PROJECT_DIR$/README" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Arm.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Arm64.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Arm64_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Arm_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Capstone.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Evm_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/IntByReference.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/LongByReference.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/M680x_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/M68k_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Mips.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Mips_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Ppc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Ppc_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Sparc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Sparc_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Systemz.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Sysz_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/TMS320C64x_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/TestNative.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/X86.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/X86_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Xcore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone/Xcore_const.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/capstone_Capstone.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/jni.iml" beforeDir="false" afterPath="$PROJECT_DIR$/jni.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/artifacts/main_jar.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/bin/main.jar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/jnic/build.sh" beforeDir="false" afterPath="$PROJECT_DIR$/jnic/build.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/jnic/libcapstonejni.jnilib" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/jnic/libjni.jnilib" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -69,7 +35,7 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="project.structure.last.edited" value="Project" />
+    <property name="project.structure.last.edited" value="Artifacts" />
     <property name="project.structure.proportion" value="0.15" />
     <property name="project.structure.side.proportion" value="0.2" />
     <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
@@ -78,7 +44,7 @@
     <configuration name="TestX86" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="TestX86" />
       <module name="test" />
-      <option name="VM_PARAMETERS" value="-Djava.library.path=&quot;jnic&quot;" />
+      <option name="VM_PARAMETERS" value="-Djava.library.path=&quot;bin&quot;" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>

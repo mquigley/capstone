@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 #undef capstone_Capstone_CS_API_MAJOR
-#define capstone_Capstone_CS_API_MAJOR 3L
+#define capstone_Capstone_CS_API_MAJOR 5L
 #undef capstone_Capstone_CS_API_MINOR
 #define capstone_Capstone_CS_API_MINOR 0L
 #undef capstone_Capstone_CS_ARCH_ARM
@@ -27,8 +27,14 @@ extern "C" {
 #define capstone_Capstone_CS_ARCH_SYSZ 6L
 #undef capstone_Capstone_CS_ARCH_XCORE
 #define capstone_Capstone_CS_ARCH_XCORE 7L
+#undef capstone_Capstone_CS_ARCH_M68K
+#define capstone_Capstone_CS_ARCH_M68K 8L
+#undef capstone_Capstone_CS_ARCH_TMS320C64X
+#define capstone_Capstone_CS_ARCH_TMS320C64X 9L
+#undef capstone_Capstone_CS_ARCH_M680X
+#define capstone_Capstone_CS_ARCH_M680X 10L
 #undef capstone_Capstone_CS_ARCH_MAX
-#define capstone_Capstone_CS_ARCH_MAX 8L
+#define capstone_Capstone_CS_ARCH_MAX 11L
 #undef capstone_Capstone_CS_ARCH_ALL
 #define capstone_Capstone_CS_ARCH_ALL 65535L
 #undef capstone_Capstone_CS_MODE_LITTLE_ENDIAN
@@ -53,8 +59,8 @@ extern "C" {
 #define capstone_Capstone_CS_MODE_MIPS3 32L
 #undef capstone_Capstone_CS_MODE_MIPS32R6
 #define capstone_Capstone_CS_MODE_MIPS32R6 64L
-#undef capstone_Capstone_CS_MODE_MIPSGP64
-#define capstone_Capstone_CS_MODE_MIPSGP64 128L
+#undef capstone_Capstone_CS_MODE_MIPS2
+#define capstone_Capstone_CS_MODE_MIPS2 128L
 #undef capstone_Capstone_CS_MODE_BIG_ENDIAN
 #define capstone_Capstone_CS_MODE_BIG_ENDIAN -2147483648L
 #undef capstone_Capstone_CS_MODE_V9
@@ -63,6 +69,28 @@ extern "C" {
 #define capstone_Capstone_CS_MODE_MIPS32 4L
 #undef capstone_Capstone_CS_MODE_MIPS64
 #define capstone_Capstone_CS_MODE_MIPS64 8L
+#undef capstone_Capstone_CS_MODE_QPX
+#define capstone_Capstone_CS_MODE_QPX 16L
+#undef capstone_Capstone_CS_MODE_M680X_6301
+#define capstone_Capstone_CS_MODE_M680X_6301 2L
+#undef capstone_Capstone_CS_MODE_M680X_6309
+#define capstone_Capstone_CS_MODE_M680X_6309 4L
+#undef capstone_Capstone_CS_MODE_M680X_6800
+#define capstone_Capstone_CS_MODE_M680X_6800 8L
+#undef capstone_Capstone_CS_MODE_M680X_6801
+#define capstone_Capstone_CS_MODE_M680X_6801 16L
+#undef capstone_Capstone_CS_MODE_M680X_6805
+#define capstone_Capstone_CS_MODE_M680X_6805 32L
+#undef capstone_Capstone_CS_MODE_M680X_6808
+#define capstone_Capstone_CS_MODE_M680X_6808 64L
+#undef capstone_Capstone_CS_MODE_M680X_6809
+#define capstone_Capstone_CS_MODE_M680X_6809 128L
+#undef capstone_Capstone_CS_MODE_M680X_6811
+#define capstone_Capstone_CS_MODE_M680X_6811 256L
+#undef capstone_Capstone_CS_MODE_M680X_CPU12
+#define capstone_Capstone_CS_MODE_M680X_CPU12 512L
+#undef capstone_Capstone_CS_MODE_M680X_HCS08
+#define capstone_Capstone_CS_MODE_M680X_HCS08 1024L
 #undef capstone_Capstone_CS_ERR_OK
 #define capstone_Capstone_CS_ERR_OK 0L
 #undef capstone_Capstone_CS_ERR_MEM
@@ -117,6 +145,12 @@ extern "C" {
 #define capstone_Capstone_CS_OP_MEM 3L
 #undef capstone_Capstone_CS_OP_FP
 #define capstone_Capstone_CS_OP_FP 4L
+#undef capstone_Capstone_CS_AC_INVALID
+#define capstone_Capstone_CS_AC_INVALID 0L
+#undef capstone_Capstone_CS_AC_READ
+#define capstone_Capstone_CS_AC_READ 1L
+#undef capstone_Capstone_CS_AC_WRITE
+#define capstone_Capstone_CS_AC_WRITE 2L
 #undef capstone_Capstone_CS_GRP_INVALID
 #define capstone_Capstone_CS_GRP_INVALID 0L
 #undef capstone_Capstone_CS_GRP_JUMP
@@ -129,6 +163,8 @@ extern "C" {
 #define capstone_Capstone_CS_GRP_INT 4L
 #undef capstone_Capstone_CS_GRP_IRET
 #define capstone_Capstone_CS_GRP_IRET 5L
+#undef capstone_Capstone_CS_GRP_PRIVILEGE
+#define capstone_Capstone_CS_GRP_PRIVILEGE 6L
 #undef capstone_Capstone_CS_SUPPORT_DIET
 #define capstone_Capstone_CS_SUPPORT_DIET 65536L
 #undef capstone_Capstone_CS_SUPPORT_X86_REDUCE
@@ -164,6 +200,54 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1close
  */
 JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1option
   (JNIEnv *, jobject, jlong, jint, jlong);
+
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_reg_name
+ * Signature: (JI)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1reg_1name
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_insn_name
+ * Signature: (JI)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1insn_1name
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_group_name
+ * Signature: (JI)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1group_1name
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_insn_group
+ * Signature: (JLcapstone/Capstone/CsInsn;I)B
+ */
+JNIEXPORT jbyte JNICALL Java_capstone_Capstone_cs_1insn_1group
+  (JNIEnv *, jobject, jlong, jobject, jint);
+
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_errno
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1errno
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_version
+ * Signature: (Lcapstone/IntByReference;Lcapstone/IntByReference;)I
+ */
+JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1version
+  (JNIEnv *, jobject, jobject, jobject);
 
 #ifdef __cplusplus
 }
