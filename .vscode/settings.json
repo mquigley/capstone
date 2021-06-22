@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "capstone_capstone.h": "c",
+        "capstone.h": "c",
+        "typeinfo": "c"
+    }
+}

@@ -65,7 +65,7 @@ public class Capstone {
         Capstone cs = new Capstone(Capstone.CS_ARCH_X86, Capstone.CS_MODE_16);
         // byte[] data = { 0x12, 0x2 }; //, 0x3, 0x4, 0x5, 6, 7, 8, 9, 10, 11, 12 };
         byte[] data = { 0x22, 0x2, 0x68, 0x30, 0x50, 0x70 };
-
+kk;
 
         ArrayList<CsInsn> list = new ArrayList<>();
         System.out.println("Reg AX " + cs.cs_reg_name(cs.handle, X86_const.X86_REG_AX));
