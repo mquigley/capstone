@@ -29,7 +29,7 @@ I think that SPARC and MIPS also deserve a mention at least.
 
 public class Capstone {
 
-    public long handle;
+    private long handle;
 
     native public int cs_open(int arch, int mode, LongByReference handle);
     native public long cs_disasm(long handle, byte[] code, long code_len,
@@ -65,7 +65,6 @@ public class Capstone {
         Capstone cs = new Capstone(Capstone.CS_ARCH_X86, Capstone.CS_MODE_16);
         // byte[] data = { 0x12, 0x2 }; //, 0x3, 0x4, 0x5, 6, 7, 8, 9, 10, 11, 12 };
         byte[] data = { 0x22, 0x2, 0x68, 0x30, 0x50, 0x70 };
-kk;
 
         ArrayList<CsInsn> list = new ArrayList<>();
         System.out.println("Reg AX " + cs.cs_reg_name(cs.handle, X86_const.X86_REG_AX));
@@ -102,8 +101,6 @@ kk;
     private boolean diet;
 
     public Capstone(int arch, int mode) {
-        System.out.println("Start at " + new Date());
-        //System.load("/Users/matt.quigley/dev/projects/capstone/bindings/jnic/jni.jnilib");
         System.loadLibrary("jni");
         IntByReference major = new IntByReference();
         IntByReference minor = new IntByReference();
@@ -238,209 +235,8 @@ kk;
         }
 
         public void outDetails(PrintStream out) {
-
+            out.println(this);
         }
-
-    /*
-    TODO
-static void print_insn_detail(csh ud, cs_mode mode, cs_insn* ins)
-{
-    int count, i;
-    cs_x86* x86;
-    cs_regs regs_read, regs_write;
-    uint8_t regs_read_count, regs_write_count;
-
-    // detail can be NULL on "data" instruction if SKIPDATA option is turned ON
-    if (ins->detail == NULL)
-	return;
-
-    csh handle = ud;
-
-    x86 = &(ins->detail->x86);
-
-    print_string_hex("\tPrefix:", x86->prefix, 4);
-
-    print_string_hex("\tOpcode:", x86->opcode, 4);
-
-    printf("\trex: 0x%x\n", x86->rex);
-
-    printf("\taddr_size: %u\n", x86->addr_size);
-    printf("\tmodrm: 0x%x\n", x86->modrm);
-    if (x86->encoding.modrm_offset != 0) {
-	printf("\tmodrm_offset: 0x%x\n", x86->encoding.modrm_offset);
-    }
-
-    printf("\tdisp: 0x%" PRIx64 "\n", x86->disp);
-    if (x86->encoding.disp_offset != 0) {
-	printf("\tdisp_offset: 0x%x\n", x86->encoding.disp_offset);
-    }
-
-    if (x86->encoding.disp_size != 0) {
-	printf("\tdisp_size: 0x%x\n", x86->encoding.disp_size);
-    }
-
-    // SIB is not available in 16-bit mode
-    if ((mode & CS_MODE_16) == 0) {
-	printf("\tsib: 0x%x\n", x86->sib);
-	if (x86->sib_base != X86_REG_INVALID)
-	    printf("\t\tsib_base: %s\n", cs_reg_name(handle, x86->sib_base));
-	if (x86->sib_index != X86_REG_INVALID)
-	    printf("\t\tsib_index: %s\n", cs_reg_name(handle, x86->sib_index));
-	if (x86->sib_scale != 0)
-	    printf("\t\tsib_scale: %d\n", x86->sib_scale);
-    }
-
-    // XOP code condition
-    if (x86->xop_cc != X86_XOP_CC_INVALID) {
-	printf("\txop_cc: %u\n", x86->xop_cc);
-    }
-
-    // SSE code condition
-    if (x86->sse_cc != X86_SSE_CC_INVALID) {
-	printf("\tsse_cc: %u\n", x86->sse_cc);
-    }
-
-    // AVX code condition
-    if (x86->avx_cc != X86_AVX_CC_INVALID) {
-	printf("\tavx_cc: %u\n", x86->avx_cc);
-    }
-
-    // AVX Suppress All Exception
-    if (x86->avx_sae) {
-	printf("\tavx_sae: %u\n", x86->avx_sae);
-    }
-
-    // AVX Rounding Mode
-    if (x86->avx_rm != X86_AVX_RM_INVALID) {
-	printf("\tavx_rm: %u\n", x86->avx_rm);
-    }
-
-    // Print out all immediate operands
-    count = cs_op_count(ud, ins, X86_OP_IMM);
-    if (count) {
-	printf("\timm_count: %u\n", count);
-	for (i = 1; i < count + 1; i++) {
-	    int index = cs_op_index(ud, ins, X86_OP_IMM, i);
-	    printf("\t\timms[%u]: 0x%" PRIx64 "\n", i, x86->operands[index].imm);
-	    if (x86->encoding.imm_offset != 0) {
-		printf("\timm_offset: 0x%x\n", x86->encoding.imm_offset);
-	    }
-
-	    if (x86->encoding.imm_size != 0) {
-		printf("\timm_size: 0x%x\n", x86->encoding.imm_size);
-	    }
-	}
-    }
-
-    if (x86->op_count)
-	printf("\top_count: %u\n", x86->op_count);
-
-    // Print out all operands
-    for (i = 0; i < x86->op_count; i++) {
-	cs_x86_op* op = &(x86->operands[i]);
-
-	switch ((int)op->type) {
-	case X86_OP_REG:
-	    printf("\t\toperands[%u].type: REG = %s\n", i, cs_reg_name(handle, op->reg));
-	    break;
-	case X86_OP_IMM:
-	    printf("\t\toperands[%u].type: IMM = 0x%" PRIx64 "\n", i, op->imm);
-	    break;
-	case X86_OP_MEM:
-	    printf("\t\toperands[%u].type: MEM\n", i);
-	    if (op->mem.segment != X86_REG_INVALID)
-		printf("\t\t\toperands[%u].mem.segment: REG = %s\n", i, cs_reg_name(handle, op->mem.segment));
-	    if (op->mem.base != X86_REG_INVALID)
-		printf("\t\t\toperands[%u].mem.base: REG = %s\n", i, cs_reg_name(handle, op->mem.base));
-	    if (op->mem.index != X86_REG_INVALID)
-		printf("\t\t\toperands[%u].mem.index: REG = %s\n", i, cs_reg_name(handle, op->mem.index));
-	    if (op->mem.scale != 1)
-		printf("\t\t\toperands[%u].mem.scale: %u\n", i, op->mem.scale);
-	    if (op->mem.disp != 0)
-		printf("\t\t\toperands[%u].mem.disp: 0x%" PRIx64 "\n", i, op->mem.disp);
-	    break;
-	default:
-	    break;
-	}
-
-	// AVX broadcast type
-	if (op->avx_bcast != X86_AVX_BCAST_INVALID)
-	    printf("\t\toperands[%u].avx_bcast: %u\n", i, op->avx_bcast);
-
-	// AVX zero opmask {z}
-	if (op->avx_zero_opmask != false)
-	    printf("\t\toperands[%u].avx_zero_opmask: TRUE\n", i);
-
-	printf("\t\toperands[%u].size: %u\n", i, op->size);
-
-	switch (op->access) {
-	default:
-	    break;
-	case CS_AC_READ:
-	    printf("\t\toperands[%u].access: READ\n", i);
-	    break;
-	case CS_AC_WRITE:
-	    printf("\t\toperands[%u].access: WRITE\n", i);
-	    break;
-	case CS_AC_READ | CS_AC_WRITE:
-	    printf("\t\toperands[%u].access: READ | WRITE\n", i);
-	    break;
-	}
-    }
-
-    // Print out all registers accessed by this instruction (either implicit or explicit)
-    if (!cs_regs_access(ud, ins,
-	regs_read, &regs_read_count,
-	regs_write, &regs_write_count)) {
-	if (regs_read_count) {
-	    printf("\tRegisters read:");
-	    for (i = 0; i < regs_read_count; i++) {
-		printf(" %s", cs_reg_name(handle, regs_read[i]));
-	    }
-	    printf("\n");
-	}
-
-	if (regs_write_count) {
-	    printf("\tRegisters modified:");
-	    for (i = 0; i < regs_write_count; i++) {
-		printf(" %s", cs_reg_name(handle, regs_write[i]));
-	    }
-	    printf("\n");
-	}
-    }
-
-    printf("\tGroups count: %d\n", ins->detail->groups_count);
-    for (i = 0; i < ins->detail->groups_count; i++) {
-	auto g = ins->detail->groups[i];
-	printf("\t\tGroup %d %s", g, cs_group_name(handle, g));
-    }
-
-    if (x86->eflags || x86->fpu_flags) {
-	for (i = 0; i < ins->detail->groups_count; i++) {
-	    if (ins->detail->groups[i] == X86_GRP_FPU) {
-		printf("\tFPU_FLAGS:");
-		for (i = 0; i <= 63; i++)
-		    if (x86->fpu_flags & ((uint64_t)1 << i)) {
-			printf(" %s", get_fpu_flag_name((uint64_t)1 << i));
-		    }
-		printf("\n");
-		break;
-	    }
-	}
-
-	if (i == ins->detail->groups_count) {
-	    printf("\tEFLAGS:");
-	    for (i = 0; i <= 63; i++)
-		if (x86->eflags & ((uint64_t)1 << i)) {
-		    printf(" %s", get_eflag_name((uint64_t)1 << i));
-		}
-	    printf("\n");
-	}
-    }
-
-    printf("\n");
-}
-     */
     }
 
 
@@ -451,24 +247,6 @@ static void print_insn_detail(csh ud, cs_mode mode, cs_insn* ins)
 
 
 
-
-
-
-    public String regName(int reg_id) {
-        return cs_reg_name(handle, reg_id);
-    }
-
-    public String insnName(int id) {
-        return cs_insn_name(handle, id);
-    }
-
-    public String groupName(int id) {
-        return cs_group_name(handle, id);
-    }
-
-    public boolean group(int gid, CsInsn insn) {
-        return cs_insn_group(handle, insn, gid) != 0;
-    }
 
 
 
@@ -580,32 +358,58 @@ static void print_insn_detail(csh ud, cs_mode mode, cs_insn* ins)
         return cs_version(null, null);
     }
 
-//    // set Assembly syntax
-//    public void setSyntax(int syntax) {
-//        if (cs.cs_option(ns.csh, CS_OPT_SYNTAX, new NativeLong(syntax)) == CS_ERR_OK) {
-//            this.syntax = syntax;
-//        } else {
-//            throw new RuntimeException("ERROR: Failed to set assembly syntax");
-//        }
-//    }
-//
-//    // set detail option at run-time
-//    public void setDetail(int opt) {
-//        if (cs.cs_option(ns.csh, CS_OPT_DETAIL, new NativeLong(opt)) == CS_ERR_OK) {
-//            this.detail = opt;
-//        } else {
-//            throw new RuntimeException("ERROR: Failed to set detail option");
-//        }
-//    }
-//
-//    // set mode option at run-time
-//    public void setMode(int opt) {
-//        if (cs.cs_option(ns.csh, CS_OPT_MODE, new NativeLong(opt)) == CS_ERR_OK) {
-//            this.mode = opt;
-//        } else {
-//            throw new RuntimeException("ERROR: Failed to set mode option");
-//        }
-//    }
+    public String regName(int reg_id) {
+        return cs_reg_name(handle, reg_id);
+    }
+
+    public String insnName(int id) {
+        return cs_insn_name(handle, id);
+    }
+
+    public String groupName(int id) {
+        return cs_group_name(handle, id);
+    }
+
+    /**
+     * Check if a disassembled instruction belong to a particular group.
+     * @param gid The group, such as {@link X86_const#X86_GRP_3DNOW}
+     * @param insn
+     * @return
+     */
+    public boolean group(int gid, CsInsn insn) {
+        return cs_insn_group(handle, insn, gid) != 0;
+    }
+
+
+    /**
+     * Set assembly syntax; see {@link #CS_OPT_SYNTAX_ATT} {@link #CS_OPT_SYNTAX_INTEL} and
+     * {@link #CS_OPT_SYNTAX_NOREGNAME}.
+     */
+    public void setSyntax(int syntax) {
+        if (cs_option(handle, CS_OPT_SYNTAX, syntax) == CS_ERR_OK) {
+            this.syntax = syntax;
+        } else {
+            throw new RuntimeException("ERROR: Failed to set assembly syntax");
+        }
+    }
+
+    // set detail option at run-time
+    public void setDetail(int opt) {
+        if (cs_option(handle, CS_OPT_DETAIL, opt) == CS_ERR_OK) {
+            this.detail = opt;
+        } else {
+            throw new RuntimeException("ERROR: Failed to set detail option");
+        }
+    }
+
+    // set mode option at run-time
+    public void setMode(int opt) {
+        if (cs_option(handle, CS_OPT_MODE, opt) == CS_ERR_OK) {
+            this.mode = opt;
+        } else {
+            throw new RuntimeException("ERROR: Failed to set mode option");
+        }
+    }
 
     // destructor automatically called at destroyed time.
     public int close() {

@@ -2,11 +2,11 @@
 #include "capstone_Capstone.h"
 
 
-#include "../../include/capstone/capstone.h"  // capstone/capstone.h>
-#include "../../include/capstone/platform.h"  // capstone/capstone.h>
+#include "../../../include/capstone/capstone.h"
+#include "../../../include/capstone/platform.h"
 
 // e:\dev\disasm\capstone\cs_priv.h
-#include "../../cs_priv.h" 
+#include "../../../cs_priv.h" 
 
 // #include <capstone.h>
 #include <stdlib.h>
@@ -886,7 +886,7 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
     struct cs_struct* ud = (cs_struct*)handle;
     csh chandle = (csh)handle;
 
-    printf("Called disasm... handle %llx ud->mode %d\n", handle, ud->mode);
+    printf("Called disasm... handle %lx ud->mode %d\n", handle, ud->mode);
 
     printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
 	sizeof(cs_err), sizeof(csh), sizeof(cs_opt_type), sizeof(size_t), sizeof(cs_insn));
@@ -1047,7 +1047,7 @@ ERROR:
 JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1close
 (JNIEnv *env, jobject thisObj, jlong handle)
 {
-    printf("Called close with handle 0x%llx...\n", handle);
+    printf("Called close with handle 0x%lx...\n", handle);
     cs_close(&handle);
     return 0;
 }

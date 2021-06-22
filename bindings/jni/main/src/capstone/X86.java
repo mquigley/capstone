@@ -31,8 +31,8 @@ public class X86 {
         public String toString(Capstone cs) {
             return "OperandMem{" +
                     "segment=" + segment +
-                    ", base=" + (cs == null ? base : cs.cs_reg_name(cs.handle, base)) +
-                    ", index=" + (cs == null ? index : cs.cs_reg_name(cs.handle, index)) +
+                    ", base=" + (cs == null ? base : cs.regName(base)) +
+                    ", index=" + (cs == null ? index : cs.regName(index)) +
                     ", scale=" + scale +
                     ", disp=" + disp +
                     '}';
