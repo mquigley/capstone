@@ -1013,6 +1013,7 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
 		break;
 	    }
 	    default:
+		printf("Architecture %d is unsupported", ud->arch);
 		;
 		// Unsupported
 	    }
