@@ -12,6 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef DEBUG
+#define PRINTF(...) printf(__VA_ARGS__);
+#else
+#define PRINTF(...) 
+#endif
 
 // MLQ Use x64 mode for 64-bit JVMs
 // 32-bit include directory: E:\dev\disasm\capstone\msvc\Debug 
@@ -54,7 +59,7 @@ static void print_string_hex(char *comment, unsigned char *str, size_t len)
     for (c = str; c < str + len; c++) {
         printf("0x%02x ", *c & 0xff);
     }
-printf("Failed to find method ""name ## signature");
+
     printf("\n");
 }
 
@@ -527,12 +532,12 @@ static void test()
 JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
 (JNIEnv *env, jobject thisObj, jint arch, jint mode, jobject handleRef)
 {
-    printf("Called open with thisObj=%p arch=%d mode=%d handle=%p\n", thisObj, arch, mode, handleRef);
+    PRINTF("Called open with thisObj=%p arch=%d mode=%d handle=%p\n", thisObj, arch, mode, handleRef);
 
     csh handle = 0;
     cs_err err = cs_open(arch, mode, &handle);
 
-    printf("Open returned err=%d handle=0x%zx\n", err, handle);
+    PRINTF("Open returned err=%d handle=0x%zx\n", err, handle);
 
     cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 
@@ -543,13 +548,8 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
         return CS_ERR_CSH;
     }
 
-    printf("Handle class %p methodID %p\n", handleClass, setValueMethodId);
+    PRINTF("Handle class %p methodID %p\n", handleClass, setValueMethodId);
     (*env)->CallVoidMethod(env, handleRef, setValueMethodId, (jlong)handle);
-
-#if false
-    // cs_close(&handle);
-    Java_capstone_Capstone_cs_1close(env, thisObj, handle);
-#endif 
 
     return err;
 }
@@ -825,7 +825,6 @@ void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject cs
                         */
                         FINDCLASS(jclass_operand_mem, "capstone/X86$OperandMem");
                         GETMETHOD(opMemconstructor, jclass_operand_mem, "<init>", "()V");
-                        printf("..");
 
                         jobject opmem = (*env)->NewObject(env, jclass_operand_mem, opMemconstructor);
                         // NEWOBJECT(opmem, jclass_operand_mem, opMemconstructor);
@@ -871,10 +870,10 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
     struct cs_struct* ud = (cs_struct*)handle;
     csh chandle = (csh)handle;
 
-    printf("Called disasm... handle %lx ud->mode %d\n", handle, ud->mode);
+    PRINTF("Called disasm... handle %lx ud->mode %d\n", handle, ud->mode);
 
-    printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
-        sizeof(cs_err), sizeof(csh), sizeof(cs_opt_type), sizeof(size_t), sizeof(cs_insn));
+    // printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
+    //     sizeof(cs_err), sizeof(csh), sizeof(cs_opt_type), sizeof(size_t), sizeof(cs_insn));
 
     jbyte* codeBytes = (*env)->GetByteArrayElements(env, code, NULL);
 
@@ -884,23 +883,22 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
     size_t actualCount = cs_disasm(handle, codeBytes, code_len, addr, 0, &insn);
     // struct cs_struct *cs = (struct cs_struct *)(uintptr_t)handle;
 
-    printf("Disasm was count=%zd\n", actualCount);
-
     if (!actualCount) {
-        printf("****************\n");
-        printf("ERROR: Failed to disasm given code!\n");
+        PRINTF("ERROR: Failed to disasm given code!\n");
         goto ERROR;
     }
+	goto ERROR;
 
     long j;
 
-    printf("****************\n");
-    printf("Disasm (count %zd):\n", actualCount);
+    // printf("Disasm (count %zd):\n", actualCount);
 
     for (j = 0; j < actualCount; j++) {
         cs_insn* ci = &insn[j];
-        printf("%ld 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
+        PRINTF("%ld 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
+		#if DEBUG
         print_insn_detail(handle, CS_MODE_16, &insn[j]);
+		#endif
 
         // The registers read and modified are not filled in by default. ci->detail->regs_read is only set by the 
         // instruction ID, not the operands
@@ -1005,17 +1003,14 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
         }
 
         // Add to ArrayList
-        printf("adding\n");
         jclass arrayList = (*env)->FindClass(env, "Ljava/util/ArrayList;");
         jmethodID array_add = (*env)->GetMethodID(env, arrayList, "add", "(Ljava/lang/Object;)Z");
-        // printf("Arraylist class %p add method %p\n", arrayList, array_add);
         (*env)->CallBooleanMethod(env, insnArray, array_add, csInsnObject);
 
 
 
 
     }
-    // printf("0x%" PRIx64 ":\n", insn[j - 1].address + insn[j - 1].size);
 
 ERROR:
     // free memory allocated by cs_disasm()
@@ -1033,9 +1028,8 @@ ERROR:
 JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1close
 (JNIEnv *env, jobject thisObj, jlong handle)
 {
-    printf("Called close with handle 0x%lx...\n", handle);
-    cs_close(&handle);
-    return 0;
+    PRINTF("Called close with handle 0x%lx...\n", handle);
+    return cs_close(&handle);
 }
 
 /*
@@ -1046,8 +1040,6 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1close
 JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1option
 (JNIEnv * env, jobject thisObj, jlong handle, jint option, jlong optionValue)
 {
-    printf("Called options...");
-    struct cs_struct* ud = (cs_struct*)handle;
-
-    return 0;
+    csh chandle = (csh)handle;
+	return cs_option(chandle, option, optionValue);
 }
