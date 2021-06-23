@@ -2,7 +2,6 @@ package capstone;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Date;
 
 // MLQ - To build header files:
 // cd E:\dev\capstone_test\jni\src\capstone
@@ -40,8 +39,6 @@ public class Capstone {
     native public String cs_reg_name(long csh, int id);
     native public String cs_insn_name (long handle, int id);
     native public String cs_group_name(long handle, int id);
-    native public byte   cs_insn_group(long handle, CsInsn insn, int id);
-
 
     // This method is unnecessary; can be done in java
 //    native public int cs_op_count(long csh, PointerToInsn insn, int type);
@@ -159,6 +156,15 @@ public class Capstone {
             this.cs = cs;
         }
 
+        /**
+         * Check if a disassembled instruction belong to a particular group.
+         * @param gid The group, such as {@link X86_const#X86_GRP_3DNOW}
+         * @return
+         */
+        public boolean isInGroup(int gid) {
+            return cs_detail.isInGroup(gid);
+        }
+
         @Override
         public String toString() {
             return "_cs_insn{" +
@@ -236,6 +242,13 @@ public class Capstone {
 
         public void outDetails(PrintStream out) {
             out.println(this);
+        }
+
+        public boolean isInGroup(int gid) {
+            for (int i = 0; i < groups.length; i++) {
+                if ((groups[i] & 0xFF) == gid) return true;
+            }
+            return false;
         }
     }
 
@@ -369,17 +382,6 @@ public class Capstone {
     public String groupName(int id) {
         return cs_group_name(handle, id);
     }
-
-    /**
-     * Check if a disassembled instruction belong to a particular group.
-     * @param gid The group, such as {@link X86_const#X86_GRP_3DNOW}
-     * @param insn
-     * @return
-     */
-    public boolean group(int gid, CsInsn insn) {
-        return cs_insn_group(handle, insn, gid) != 0;
-    }
-
 
     /**
      * Set assembly syntax; see {@link #CS_OPT_SYNTAX_ATT} {@link #CS_OPT_SYNTAX_INTEL} and

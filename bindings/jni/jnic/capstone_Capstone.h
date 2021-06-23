@@ -227,14 +227,6 @@ JNIEXPORT jstring JNICALL Java_capstone_Capstone_cs_1group_1name
 
 /*
  * Class:     capstone_Capstone
- * Method:    cs_insn_group
- * Signature: (JLcapstone/Capstone/CsInsn;I)B
- */
-JNIEXPORT jbyte JNICALL Java_capstone_Capstone_cs_1insn_1group
-  (JNIEnv *, jobject, jlong, jobject, jint);
-
-/*
- * Class:     capstone_Capstone
  * Method:    cs_errno
  * Signature: (J)I
  */
