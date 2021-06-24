@@ -180,10 +180,18 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
 /*
  * Class:     capstone_Capstone
  * Method:    cs_disasm
- * Signature: (J[BJJJLjava/util/ArrayList;)J
+ * Signature: (J[BIJJLjava/util/ArrayList;)J
  */
-JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
-  (JNIEnv *, jobject, jlong, jbyteArray, jlong, jlong, jlong, jobject);
+JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm__J_3BIJJLjava_util_ArrayList_2
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jlong, jlong, jobject);
+
+/*
+ * Class:     capstone_Capstone
+ * Method:    cs_disasm
+ * Signature: (J[BIJ)Lcapstone/Capstone/CsInsn;
+ */
+JNIEXPORT jobject JNICALL Java_capstone_Capstone_cs_1disasm__J_3BIJ
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jlong);
 
 /*
  * Class:     capstone_Capstone

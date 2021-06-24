@@ -31,8 +31,9 @@ public class Capstone {
     private long handle;
 
     native public int cs_open(int arch, int mode, LongByReference handle);
-    native public long cs_disasm(long handle, byte[] code, long code_len,
+    native public long cs_disasm(long handle, byte[] code, int codeLen,
                                  long addr, long count, ArrayList<CsInsn> insn);
+    native public CsInsn cs_disasm(long handle, byte[] code, int codeLen, long addr);
     native public int cs_close(long handle);
     native public int cs_option(long handle, int option, long optionValue);
 
@@ -64,24 +65,27 @@ public class Capstone {
         byte[] data = { 0x22, 0x2, 0x68, 0x30, 0x50, 0x70 };
 
         ArrayList<CsInsn> list = new ArrayList<>();
+        CsInsn insn = null;
         System.out.println("Reg AX " + cs.cs_reg_name(cs.handle, X86_const.X86_REG_AX));
         System.out.println("Reg Invalid " + cs.cs_reg_name(cs.handle, -50));
 
         long start = System.currentTimeMillis();
 
-        int TIMES = 1;
+        int TIMES = 5000000;
         for (int i = 0; i < TIMES; i++) {
-            list = cs.disasm(data, 0);
+            insn = cs.disasm(data, 0);
         }
         long end = System.currentTimeMillis();
         long length = end - start;
         System.out.println("Total time took " + length + "ms. Average was " + (length / TIMES) + "ms.");
 
+
         System.out.println("main method end. the list is:");
-        for (CsInsn insn : list) {
-            System.out.println(insn.toString());
-            insn.outDetails();
+        for (CsInsn insn2 : list) {
+            System.out.println(insn2.toString());
+            insn2.outDetails();
         }
+        System.out.println(insn);
 
         System.out.println("Instruction name: " + cs.cs_insn_name(cs.handle, X86_const.X86_INS_XLATB));
         System.out.println("Group name: " + cs.cs_group_name(cs.handle, X86_const.X86_GRP_CALL));
@@ -133,6 +137,11 @@ public class Capstone {
         return list;
     }
 
+    public CsInsn disasm(byte[] code, long address) {
+        CsInsn insn = cs_disasm(handle, code, code.length, address);
+        return insn;
+    }
+
     // E:\dev\disasm\capstone\include\capstone.h #285
     public static class CsInsn {
         // instruction ID.
@@ -174,7 +183,7 @@ public class Capstone {
                     ", address=" + address +
                     ", size=" + size +
                     ", bytes=" + Capstone.toString(bytes, size) +
-                    ", cs_detail=" + cs_detail.toString() +
+                    ", cs_detail=" + (cs_detail != null ? cs_detail.toString() : "(n/a)") +
                     '}';
         }
 
@@ -186,7 +195,8 @@ public class Capstone {
         private void outDetails(PrintStream out) {
             out.println("ID: " + id + " Mnem: " + mnemonic + " Ops: " + op_str);
             out.printf("\t0x%x size: %d bytes: %s", address, size, Capstone.toString(bytes, size));
-            cs_detail.outDetails(out);
+            if (cs_detail != null)
+                cs_detail.outDetails(out);
         }
     }
 
@@ -418,18 +428,6 @@ public class Capstone {
         int retVal = cs_close(handle);
         handle = 0;
         return retVal;
-    }
-
-    /**
-     * Disassemble instructions from @code assumed to be located at @address,
-     * stop when encountering first broken instruction.
-     *
-     * @param code The source machine code bytes.
-     * @param address The address of the first machine code byte.
-     * @return the array of successfully disassembled instructions, empty if no instruction could be disassembled.
-     */
-    public ArrayList<CsInsn> disasm(byte[] code, long address) {
-        return disasm(code, address, 0);
     }
 
     public static String toString(byte[] a) {
