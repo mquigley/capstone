@@ -4,6 +4,7 @@ import capstone.Capstone.*;
 
 public class TestX86 {
 
+    // Add -Xcheck:jni to VM options to help debug JNI
 
     // TODO 32-bit E:\dev\disasm\capstone\msvc\Debug
     // TODO 64-bit E:\dev\disasm\capstone\msvc\x64\Debug\
@@ -41,11 +42,15 @@ public class TestX86 {
         // With single disasm and global
         // Total time for 50000 took 119ms. Average was 0.00238ms.
         // Total time for 50000 took 134ms. Average was 0.00268ms.
+        // With list and global
+        // Total time for 50000 took 362ms. Average was 0.00724ms.
+
 
         int TIMES = 50000 ; //50000;
         CsInsn ins = null;
         for (int i = 0; i < TIMES; i++) {
             ins = cs.disasm(data, 0);
+            // list = cs.disasm(data, 0, 0);
             // System.out.println(list);
         }
         long end = System.currentTimeMillis();

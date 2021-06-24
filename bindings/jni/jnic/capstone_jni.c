@@ -30,16 +30,18 @@
 // constructor = (*env)->GetMethodID(env, jclass_cs_insn, "<init>", "()V");        
 #define GETMETHOD(variable, jclass, name, signature) jmethodID variable = (*env)->GetMethodID(env, jclass, name, signature); \
     if (!variable) { printf("Failed to find method " #name #signature); goto ERROR; }
-// javaObject = (*env)->NewObject(env, jclass_cs_insn, constructor);
-#define NEWOBJECT(variable, jclass, constructor, ...) jobject variable = (*env)->NewObject(env, jclass, constructor, __VA_ARGS__); \
-    if (!variable) { printf("Failed to allocate object jclass" ); goto ERROR; }
-
 // jfieldID field_d_regs_read = (*env)->GetFieldID(env, jclass_cs_detail, "regs_read", "[S");
 #define GETFIELD(variable, jclass, name, signature)  jfieldID variable = (*env)->GetFieldID(env, jclass, name, signature); \
     if (!variable) { printf("Failed to find field " #name #signature); goto ERROR; }
+
+#define GETMETHODONCE(variable, jclass, name, signature) variable = (*env)->GetMethodID(env, jclass, name, signature); \
+    if (!variable) { printf("Failed to find method " #name #signature); goto ERROR; }
 #define GETFIELDONCE(variable, jclass, name, signature)  variable = (*env)->GetFieldID(env, jclass, name, signature); \
     if (!variable) { printf("Failed to find field " #name #signature); goto ERROR; }
 
+// javaObject = (*env)->NewObject(env, jclass_cs_insn, constructor);
+#define NEWOBJECT(variable, jclass, constructor, ...) jobject variable = (*env)->NewObject(env, jclass, constructor, __VA_ARGS__); \
+    if (!variable) { printf("Failed to allocate object jclass" ); goto ERROR; }
 
 
 
@@ -521,6 +523,15 @@ static void test()
 }
 
 
+/*
+A field or method ID does not prevent the VM from unloading the class from which the ID has been derived. After the 
+class is unloaded, the method or field ID becomes invalid. The native code, therefore, must make sure to:
+
+    keep a live reference to the underlying class, or
+    recompute the method or field ID
+
+if it intends to use a method or field ID for an extended period of time.
+*/
 
 jfieldID field_insn_id;
 jfieldID field_insn_address;
@@ -530,8 +541,37 @@ jfieldID field_insn_mnemonic;
 jfieldID field_insn_op_str;
 jfieldID field_insn_detail;
 
-jclass class_arrayList;
+jmethodID method_insn_ctor;
 jmethodID method_array_add;
+
+jfieldID field_d_regs_read;
+jfieldID field_d_regs_write;
+jfieldID field_d_groups;
+
+jmethodID x86_constructor;
+jfieldID field_prefix;
+jfieldID field_opcode;
+jfieldID field_rex;
+jfieldID field_addr_size;
+jfieldID field_modrm;
+jfieldID field_sib;
+jfieldID field_disp;
+jfieldID field_sib_index;
+jfieldID field_sib_scale;
+jfieldID field_sib_base;
+jfieldID field_xop_cc;
+jfieldID field_sse_cc;
+jfieldID field_avx_cc;
+jfieldID field_avx_sae;
+jfieldID field_avx_rm;
+jfieldID field_eflags;
+jfieldID field_op;
+jfieldID field_modrmOffset;
+jfieldID field_dispOffset;
+jfieldID field_dispSize;
+jfieldID field_immOffset;
+jfieldID field_immSize;
+
 
 /*
 * Class:     capstone_Capstone
@@ -559,7 +599,10 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
 
     PRINTF("Handle class %p methodID %p\n", handleClass, setValueMethodId);
     (*env)->CallVoidMethod(env, handleRef, setValueMethodId, (jlong)handle);
-
+	if ((*env)->ExceptionCheck(env)) {
+		printf("Exception");
+ 	 	return CS_ERR_CSH;
+	}
 
 	//   Type Signature
 	//Java Type
@@ -584,26 +627,59 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
         //public String op_str;
         //public _cs_detail cs_detail;
 
-	FINDCLASS(jclass_cs_insn, "capstone/Capstone$CsInsn")
-	GETFIELDONCE(field_insn_id, jclass_cs_insn, "id", "I")
-	GETFIELDONCE(field_insn_address, jclass_cs_insn, "address", "J")
-	GETFIELDONCE(field_insn_size, jclass_cs_insn, "size", "S")
-	GETFIELDONCE(field_insn_bytes, jclass_cs_insn, "bytes", "[B")
-	GETFIELDONCE(field_insn_mnemonic, jclass_cs_insn, "mnemonic", "Ljava/lang/String;")
-	GETFIELDONCE(field_insn_op_str, jclass_cs_insn, "op_str", "Ljava/lang/String;")
-	GETFIELDONCE(field_insn_detail, jclass_cs_insn, "cs_detail", "Lcapstone/Capstone$CsDetail;")
+	FINDCLASS(jclass_csinsn, "capstone/Capstone$CsInsn")
+	GETFIELDONCE(field_insn_id, jclass_csinsn, "id", "I")
+	GETFIELDONCE(field_insn_address, jclass_csinsn, "address", "J")
+	GETFIELDONCE(field_insn_size, jclass_csinsn, "size", "S")
+	GETFIELDONCE(field_insn_bytes, jclass_csinsn, "bytes", "[B")
+	GETFIELDONCE(field_insn_mnemonic, jclass_csinsn, "mnemonic", "Ljava/lang/String;")
+	GETFIELDONCE(field_insn_op_str, jclass_csinsn, "op_str", "Ljava/lang/String;")
+	GETFIELDONCE(field_insn_detail, jclass_csinsn, "cs_detail", "Lcapstone/Capstone$CsDetail;")
 
-	class_arrayList = (*env)->FindClass(env, "Ljava/util/ArrayList;");
+	GETMETHODONCE(method_insn_ctor, jclass_csinsn, "<init>", "(Lcapstone/Capstone;)V");
+
+    FINDCLASS(jclass_cs_detail, "capstone/Capstone$CsDetail");
+    GETFIELDONCE(field_d_regs_read, jclass_cs_detail, "regs_read", "[S");
+    GETFIELDONCE(field_d_regs_write, jclass_cs_detail, "regs_write", "[S");
+    GETFIELDONCE(field_d_groups, jclass_cs_detail, "groups", "[B");
+
+
+    FINDCLASS(jclass_x86, "capstone/X86$X86Detail");
+    GETMETHODONCE(x86_constructor, jclass_x86, "<init>", "(Lcapstone/Capstone$CsInsn;)V");
+    GETFIELDONCE(field_prefix, jclass_x86, "prefix", "[B");
+    GETFIELDONCE(field_opcode, jclass_x86, "opcode", "[B");
+    GETFIELDONCE(field_rex, jclass_x86, "rex", "B");
+    GETFIELDONCE(field_addr_size, jclass_x86, "addr_size", "B");
+    GETFIELDONCE(field_modrm, jclass_x86, "modrm", "B");
+    GETFIELDONCE(field_sib, jclass_x86, "sib", "B");
+    GETFIELDONCE(field_disp, jclass_x86, "disp", "J");
+    GETFIELDONCE(field_sib_index, jclass_x86, "sib_index", "I");
+    GETFIELDONCE(field_sib_scale, jclass_x86, "sib_scale", "B");
+    GETFIELDONCE(field_sib_base, jclass_x86, "sib_base", "I");
+    GETFIELDONCE(field_xop_cc, jclass_x86, "xop_cc", "I");
+    GETFIELDONCE(field_sse_cc, jclass_x86, "sse_cc", "I");
+    GETFIELDONCE(field_avx_cc, jclass_x86, "avx_cc", "I");
+    GETFIELDONCE(field_avx_sae, jclass_x86, "avx_sae", "B");
+    GETFIELDONCE(field_avx_rm, jclass_x86, "avx_rm", "I");
+    GETFIELDONCE(field_eflags, jclass_x86, "eflags", "J");
+    GETFIELDONCE(field_op, jclass_x86, "op", "[Lcapstone/X86$Operand;");
+    GETFIELDONCE(field_modrmOffset, jclass_x86, "modrmOffset", "B");
+    GETFIELDONCE(field_dispOffset, jclass_x86, "dispOffset", "B");
+    GETFIELDONCE(field_dispSize, jclass_x86, "dispSize", "B");
+    GETFIELDONCE(field_immOffset, jclass_x86, "immOffset", "B");
+    GETFIELDONCE(field_immSize, jclass_x86, "immSize", "B");
+
+	FINDCLASS(class_arrayList, "java/util/ArrayList");
 	method_array_add = (*env)->GetMethodID(env, class_arrayList, "add", "(Ljava/lang/Object;)Z");
 
     return err;
 
 	ERROR:
 	// TODO - RAISE EXCEPTION
+	printf("ERROR: Could not initialize Java class fields\n");
 	return -1;
 }
 
-// native public String cs_reg_name(long csh, int id);
 
 /*
  * Class:     capstone_Capstone
@@ -664,11 +740,15 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1version
 
         if (majorObj) {
             (*env)->CallVoidMethod(env, majorObj, method, (jint)major);
+			(*env)->ExceptionCheck(env); // make JNI happy
         }
         if (minorObj) {
             (*env)->CallVoidMethod(env, minorObj, method, (jint)minor);
+			(*env)->ExceptionCheck(env); // make JNI happy
         }
     }
+
+	// 
 
  ERROR:
     return version;
@@ -706,10 +786,6 @@ static jbyteArray allocateJByteArray(JNIEnv* env, const uint8_t* src, const int 
 /// <param name="detailObject"></param>
 void disasmDetails(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jclass jclass_cs_detail, jobject detailObject) {
 
-    GETFIELD(field_d_regs_read, jclass_cs_detail, "regs_read", "[S");
-    GETFIELD(field_d_regs_write, jclass_cs_detail, "regs_write", "[S");
-    GETFIELD(field_d_groups, jclass_cs_detail, "groups", "[B");
-
     // Allocate the arrays
     jshortArray regsReadArray = (*env)->NewShortArray(env, ci->detail->regs_read_count);
     (*env)->SetObjectField(env, detailObject, field_d_regs_read, regsReadArray);
@@ -730,63 +806,10 @@ ERROR:
 void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject csInsnObject, jfieldID field_insnObject_detail) {
 
     FINDCLASS(jclass_x86, "capstone/X86$X86Detail");
-    GETMETHOD(constructor, jclass_x86, "<init>", "(Lcapstone/Capstone$CsInsn;)V");
-    NEWOBJECT(x86InsnObject, jclass_x86, constructor, csInsnObject);
+    NEWOBJECT(x86InsnObject, jclass_x86, x86_constructor, csInsnObject);
     (*env)->SetObjectField(env, csInsnObject, field_insnObject_detail, x86InsnObject);
 
     disasmDetails(env, cs, ci, jclass_x86, x86InsnObject);
-
-    /*
-        public static class X86Detail extends Capstone.CsDetail {
-        public byte[] prefix;
-        public byte[] opcode;
-        public byte rex;
-        public byte addr_size;
-        public byte modrm;
-        public byte sib;
-        public long disp;
-        public int sib_index;
-        public byte sib_scale;
-        public int sib_base;
-        public int xop_cc;
-        public int sse_cc;
-        public int avx_cc;
-        public byte avx_sae;
-        public int avx_rm;
-        public long eflags;
-        public byte op_count;
-        public Operand[] op;
-        public byte modrmOffset;
-        public byte dispOffset;
-        public byte dispSize;
-        public byte immOffset;
-        public byte immSize;
-
-    */
-
-    GETFIELD(field_prefix, jclass_x86, "prefix", "[B");
-    GETFIELD(field_opcode, jclass_x86, "opcode", "[B");
-    GETFIELD(field_rex, jclass_x86, "rex", "B");
-    GETFIELD(field_addr_size, jclass_x86, "addr_size", "B");
-    GETFIELD(field_modrm, jclass_x86, "modrm", "B");
-    GETFIELD(field_sib, jclass_x86, "sib", "B");
-    GETFIELD(field_disp, jclass_x86, "disp", "J");
-    GETFIELD(field_sib_index, jclass_x86, "sib_index", "I");
-    GETFIELD(field_sib_scale, jclass_x86, "sib_scale", "B");
-    GETFIELD(field_sib_base, jclass_x86, "sib_base", "I");
-    GETFIELD(field_xop_cc, jclass_x86, "xop_cc", "I");
-    GETFIELD(field_sse_cc, jclass_x86, "sse_cc", "I");
-    GETFIELD(field_avx_cc, jclass_x86, "avx_cc", "I");
-    GETFIELD(field_avx_sae, jclass_x86, "avx_sae", "B");
-    GETFIELD(field_avx_rm, jclass_x86, "avx_rm", "I");
-    GETFIELD(field_eflags, jclass_x86, "eflags", "J");
-    // GETFIELD(field_op_count, jclass_x86, "op_count", "B");
-    GETFIELD(field_op, jclass_x86, "op", "[Lcapstone/X86$Operand;");
-    GETFIELD(field_modrmOffset, jclass_x86, "modrmOffset", "B");
-    GETFIELD(field_dispOffset, jclass_x86, "dispOffset", "B");
-    GETFIELD(field_dispSize, jclass_x86, "dispSize", "B");
-    GETFIELD(field_immOffset, jclass_x86, "immOffset", "B");
-    GETFIELD(field_immSize, jclass_x86, "immSize", "B");
 
     cs_x86* x86 = &ci->detail->x86;
 
@@ -848,54 +871,49 @@ void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject cs
     (*env)->SetObjectField(env, x86InsnObject, field_op, operandArray);
 
     for (int i = 0; i < x86->op_count; i++) {
-                cs_x86_op* op = &x86->operands[i];
-                jobject operand = (*env)->NewObject(env, jclass_operand, operandConstructor);
-                (*env)->SetObjectArrayElement(env, operandArray, i, operand);
+		cs_x86_op* op = &x86->operands[i];
+		jobject operand = (*env)->NewObject(env, jclass_operand, operandConstructor);
+		(*env)->SetObjectArrayElement(env, operandArray, i, operand);
 
-                (*env)->SetIntField(env, operand, field_x86op_type, op->type);
-                (*env)->SetByteField(env, operand, field_x86op_size, op->size);
-                (*env)->SetByteField(env, operand, field_x86op_access, op->access);
-                (*env)->SetIntField(env, operand, field_x86op_avx_bcast, op->avx_bcast);
-                (*env)->SetBooleanField(env, operand, field_x86op_avx_zero_opmask, op->avx_zero_opmask);
+		(*env)->SetIntField(env, operand, field_x86op_type, op->type);
+		(*env)->SetByteField(env, operand, field_x86op_size, op->size);
+		(*env)->SetByteField(env, operand, field_x86op_access, op->access);
+		(*env)->SetIntField(env, operand, field_x86op_avx_bcast, op->avx_bcast);
+		(*env)->SetBooleanField(env, operand, field_x86op_avx_zero_opmask, op->avx_zero_opmask);
 
-                switch (op->type) {
-                        case X86_OP_REG:
-                        (*env)->SetIntField(env, operand, field_x86op_reg, op->reg); break;
-                        case X86_OP_IMM:
-                        (*env)->SetLongField(env, operand, field_x86op_imm, op->imm); break;
-                        case X86_OP_MEM: {
-                        /*
-                        public static class OperandMem {
-                                public int segment;
-                                public int base;
-                                public int index;
-                                public int scale;
-                                public long disp;
-                        */
-                        FINDCLASS(jclass_operand_mem, "capstone/X86$OperandMem");
-                        GETMETHOD(opMemconstructor, jclass_operand_mem, "<init>", "()V");
+		switch (op->type) {
+			case X86_OP_REG:
+				(*env)->SetIntField(env, operand, field_x86op_reg, op->reg); 
+				break;
+			case X86_OP_IMM:
+				(*env)->SetLongField(env, operand, field_x86op_imm, op->imm); 
+				break;
+			case X86_OP_MEM: {
+				FINDCLASS(jclass_operand_mem, "capstone/X86$OperandMem");
+				GETMETHOD(opMemconstructor, jclass_operand_mem, "<init>", "()V");
 
-                        jobject opmem = (*env)->NewObject(env, jclass_operand_mem, opMemconstructor);
-                        // NEWOBJECT(opmem, jclass_operand_mem, opMemconstructor);
-                        // 
-                        (*env)->SetObjectField(env, operand, field_x86op_mem, opmem);
+				jobject opmem = (*env)->NewObject(env, jclass_operand_mem, opMemconstructor);
+				// NEWOBJECT(opmem, jclass_operand_mem, opMemconstructor);
+				// 
+				(*env)->SetObjectField(env, operand, field_x86op_mem, opmem);
 
-                        GETFIELD(field_x86op_segment, jclass_operand_mem, "segment", "I");
-                        GETFIELD(field_x86op_base, jclass_operand_mem, "base", "I");
-                        GETFIELD(field_x86op_index, jclass_operand_mem, "index", "I");
-                        GETFIELD(field_x86op_scale, jclass_operand_mem, "scale", "I");
-                        GETFIELD(field_x86op_disp, jclass_operand_mem, "disp", "J");
+				GETFIELD(field_x86op_segment, jclass_operand_mem, "segment", "I");
+				GETFIELD(field_x86op_base, jclass_operand_mem, "base", "I");
+				GETFIELD(field_x86op_index, jclass_operand_mem, "index", "I");
+				GETFIELD(field_x86op_scale, jclass_operand_mem, "scale", "I");
+				GETFIELD(field_x86op_disp, jclass_operand_mem, "disp", "J");
 
-                        (*env)->SetIntField(env, opmem, field_x86op_segment, op->mem.segment);
-                        (*env)->SetIntField(env, opmem, field_x86op_base, op->mem.base);
-                        (*env)->SetIntField(env, opmem, field_x86op_index, op->mem.index);
-                        (*env)->SetIntField(env, opmem, field_x86op_scale, op->mem.scale);
-                        (*env)->SetLongField(env, opmem, field_x86op_disp, op->mem.disp);
+				(*env)->SetIntField(env, opmem, field_x86op_segment, op->mem.segment);
+				(*env)->SetIntField(env, opmem, field_x86op_base, op->mem.base);
+				(*env)->SetIntField(env, opmem, field_x86op_index, op->mem.index);
+				(*env)->SetIntField(env, opmem, field_x86op_scale, op->mem.scale);
+				(*env)->SetLongField(env, opmem, field_x86op_disp, op->mem.disp);
 
-                        break;
-                        default: break;
-                        }
-                }
+				break;
+			default: 
+			break;
+			}
+		}
     }
 
 ERROR:
@@ -903,6 +921,70 @@ ERROR:
 }
 
 
+jobject toJavaObject(JNIEnv *env, jlong handle, jobject thisObj, cs_insn* ci) {
+    struct cs_struct* ud = (cs_struct*)handle;
+    csh chandle = (csh)handle;
+
+	PRINTF("0x%" PRIx64 ":\t%s\t%s\n", ci->address, ci->mnemonic, ci->op_str);
+	#ifdef DEBUG
+	// print_insn_detail(handle, CS_MODE_16, ci);
+	#endif
+
+	// The registers read and modified are not filled in by default. ci->detail->regs_read is only set by the 
+	// instruction ID, not the operands
+	cs_regs regs_read, regs_write;
+	uint8_t regs_read_count, regs_write_count;
+
+	// Print out all registers accessed by this instruction (either implicit or explicit)
+	if (!cs_regs_access(chandle, ci, regs_read, &regs_read_count, regs_write, &regs_write_count)) {
+		if (regs_read_count) {
+			ci->detail->regs_read_count = regs_read_count;
+			memcpy(ci->detail->regs_read, regs_read, regs_read_count * sizeof(*regs_read));
+		}
+
+		if (regs_write_count) {
+			ci->detail->regs_write_count = regs_write_count;
+			memcpy(ci->detail->regs_write, regs_write, regs_write_count * sizeof(*regs_write));
+		}
+	}
+
+	// Convert instruction
+	jstring    filename = NULL;
+	jboolean  returnValue = JNI_FALSE;
+	jobject    detailObject = NULL;
+	FINDCLASS(jclass_csinsn, "capstone/Capstone$CsInsn")
+	NEWOBJECT(csInsnObject, jclass_csinsn, method_insn_ctor, thisObj)
+	
+	(*env)->SetIntField(env, csInsnObject, field_insn_id, ci->id);
+	(*env)->SetLongField(env, csInsnObject, field_insn_address, ci->address);
+	(*env)->SetShortField(env, csInsnObject, field_insn_size, ci->size);
+
+	jbyteArray bytesArray = allocateJByteArray(env, ci->bytes, ci->size);
+	(*env)->SetObjectField(env, csInsnObject, field_insn_bytes, bytesArray);
+
+	jstring mnem = (*env)->NewStringUTF(env, ci->mnemonic);
+	(*env)->SetObjectField(env, csInsnObject, field_insn_mnemonic, mnem);
+
+	jstring ops = (*env)->NewStringUTF(env, ci->op_str);
+	(*env)->SetObjectField(env, csInsnObject, field_insn_op_str, ops);
+
+	if (1 && ci->detail) {
+		switch (ud->arch) {
+		case CS_ARCH_X86: {
+			disasmX86Details(env, ud, ci, csInsnObject, field_insn_detail);
+			break;
+		}
+		default:
+			printf("Architecture %d is unsupported", ud->arch);
+			; // Unsupported
+		}
+	}	
+
+	return csInsnObject;
+
+ERROR:
+	return NULL;
+}
 
 /*
  * Class:     capstone_Capstone
@@ -912,7 +994,47 @@ ERROR:
 JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm__J_3BIJJLjava_util_ArrayList_2
   (JNIEnv *env, jobject thisObj, jlong handle, jbyteArray code, jint code_len, jlong addr, jlong count, jobject insnArray)
 {
-	return 0;
+    struct cs_struct* ud = (cs_struct*)handle;
+    csh chandle = (csh)handle;
+
+    PRINTF("Called ARRAY disasm... handle %lx ud->mode %d code_len %d count %ld\n", handle, ud->mode, code_len, count);
+
+    if (code_len <= 0 || count < 0)
+        return 0;
+
+    // printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
+    //     sizeof(cs_err), sizeof(csh), sizeof(cs_opt_type), sizeof(size_t), sizeof(cs_insn));
+
+    jbyte* codeBytes = (*env)->GetByteArrayElements(env, code, NULL);
+
+    cs_insn *insn = NULL; 
+    
+    // size_t CAPSTONE_API cs_disasm(csh ud, const uint8_t *buffer, size_t size, uint64_t offset, size_t count, cs_insn **insn)
+    size_t actualCount = cs_disasm(handle, codeBytes, code_len, addr, 0, &insn);
+    // struct cs_struct *cs = (struct cs_struct *)(uintptr_t)handle;
+
+    if (!actualCount) {
+        PRINTF("ERROR: Failed to disasm given code!\n");
+        goto ERROR;
+    }
+    // goto ERROR;
+
+    // printf("Disasm (count %zd):\n", actualCount);
+
+    for (long j = 0; j < actualCount; j++) {
+        cs_insn* ci = &insn[j];
+        jobject csInsnObject = toJavaObject(env, handle, thisObj, ci);
+
+        // Add to ArrayList
+        (*env)->CallBooleanMethod(env, insnArray, method_array_add, csInsnObject);
+    }
+
+ERROR:
+    // free memory allocated by cs_disasm()
+    if (insn) cs_free(insn, count);
+
+	PRINTF("Actual count %ld\n", actualCount);
+    return actualCount;
 }
 
 /*
@@ -951,84 +1073,8 @@ JNIEXPORT jobject JNICALL Java_capstone_Capstone_cs_1disasm__J_3BIJ
     // printf("Disasm (count %zd):\n", actualCount);
 
 	cs_insn* ci = &insn[0];
-	PRINTF("0x%" PRIx64 ":\t%s\t%s\n", ci->address, ci->mnemonic, ci->op_str);
-	#ifdef DEBUG
-	// print_insn_detail(handle, CS_MODE_16, ci);
-	printf("DONE!\n");
-	#endif
+	jobject csInsnObject = toJavaObject(env, handle, thisObj, ci);
 
-	// The registers read and modified are not filled in by default. ci->detail->regs_read is only set by the 
-	// instruction ID, not the operands
-	cs_regs regs_read, regs_write;
-	uint8_t regs_read_count, regs_write_count;
-PRINTF("xx0");
-	// Print out all registers accessed by this instruction (either implicit or explicit)
-	if (!cs_regs_access(chandle, ci, regs_read, &regs_read_count, regs_write, &regs_write_count)) {
-		if (regs_read_count) {
-			ci->detail->regs_read_count = regs_read_count;
-			memcpy(ci->detail->regs_read, regs_read, regs_read_count * sizeof(*regs_read));
-		}
-
-		if (regs_write_count) {
-			ci->detail->regs_write_count = regs_write_count;
-			memcpy(ci->detail->regs_write, regs_write, regs_write_count * sizeof(*regs_write));
-		}
-	}
-
-
-	// Convert instruction
-	jstring    filename = NULL;
-	jboolean  returnValue = JNI_FALSE;
-	jobject    detailObject = NULL;
-PRINTF("@");
-
-	// jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
-	FINDCLASS(jclass_cs_insn, "capstone/Capstone$CsInsn")
-	GETMETHOD(constructor, jclass_cs_insn, "<init>", "(Lcapstone/Capstone;)V");
-	NEWOBJECT(csInsnObject, jclass_cs_insn, constructor, thisObj)
-PRINTF("1");
-	(*env)->SetIntField(env, csInsnObject, field_insn_id, ci->id);
-	(*env)->SetLongField(env, csInsnObject, field_insn_address, ci->address);
-	(*env)->SetShortField(env, csInsnObject, field_insn_size, ci->size);
-PRINTF("2");
-	jbyteArray bytesArray = allocateJByteArray(env, ci->bytes, ci->size);
-	(*env)->SetObjectField(env, csInsnObject, field_insn_bytes, bytesArray);
-PRINTF("3");
-	jstring mnem = (*env)->NewStringUTF(env, ci->mnemonic);
-	(*env)->SetObjectField(env, csInsnObject, field_insn_mnemonic, mnem);
-PRINTF("4");
-	jstring ops = (*env)->NewStringUTF(env, ci->op_str);
-	(*env)->SetObjectField(env, csInsnObject, field_insn_op_str, ops);
-// continue;
-PRINTF("5");
-	if (0 && ci->detail) {
-		// Detail
-		// 
-		//public static  abstract class CsDetail {
-		//
-		// list of all implicit registers being read.
-		//public short[] regs_read = new short[16];
-		//public byte regs_read_count;
-		//// list of all implicit registers being written.
-		//public short[] regs_write = new short[20];
-		//public byte regs_write_count;
-		//// list of semantic groups this instruction belongs to.
-		//public byte[] groups = new byte[8];
-		//public byte groups_count;
-		//}
-
-		// public UnionArch arch;
-		switch (ud->arch) {
-		case CS_ARCH_X86: {
-			disasmX86Details(env, ud, ci, csInsnObject, field_insn_detail);
-			break;
-		}
-		default:
-			printf("Architecture %d is unsupported", ud->arch);
-			;
-			// Unsupported
-		}
-	}
 PRINTF("END\n");
     // free memory allocated by cs_disasm()
     if (insn) cs_free(insn, 1);
@@ -1040,146 +1086,153 @@ ERROR:
     return NULL;	
 }
 
-/*
-* Class:     capstone_Capstone
-* Method:    cs_disasm
-* Signature: (J[BJJJLjava/util/ArrayList;)J
-*/
-JNIEXPORT jlong JNICALL XXXXXXXXXXXXXJava_capstone_Capstone_cs_1disasm
-(JNIEnv *env, jobject thisObj, jlong handle, jbyteArray code, jlong code_len, jlong addr, jlong count, jobject insnArray)
-{
-    struct cs_struct* ud = (cs_struct*)handle;
-    csh chandle = (csh)handle;
 
-    PRINTF("Called ARRAY disasm... handle %lx ud->mode %d code_len %ld count %ld\n", handle, ud->mode, code_len, count);
 
-    if (code_len < 0 || count < 0)
-        return 0;
 
-    // printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
-    //     sizeof(cs_err), sizeof(csh), sizeof(cs_opt_type), sizeof(size_t), sizeof(cs_insn));
 
-    jbyte* codeBytes = (*env)->GetByteArrayElements(env, code, NULL);
 
-    cs_insn *insn = NULL; 
+
+
+// /*
+// * Class:     capstone_Capstone
+// * Method:    cs_disasm
+// * Signature: (J[BJJJLjava/util/ArrayList;)J
+// */
+// JNIEXPORT jlong JNICALL XXXXXXXXXXXXXJava_capstone_Capstone_cs_1disasm
+// (JNIEnv *env, jobject thisObj, jlong handle, jbyteArray code, jlong code_len, jlong addr, jlong count, jobject insnArray)
+// {
+//     struct cs_struct* ud = (cs_struct*)handle;
+//     csh chandle = (csh)handle;
+
+//     PRINTF("Called ARRAY disasm... handle %lx ud->mode %d code_len %ld count %ld\n", handle, ud->mode, code_len, count);
+
+//     if (code_len <= 0 || count < 0)
+//         return 0;
+
+//     // printf("Size cs_err %zd csh %zd cs_opt_type %zd size_t %zd sizeof(cs_insn) %zd\n", 
+//     //     sizeof(cs_err), sizeof(csh), sizeof(cs_opt_type), sizeof(size_t), sizeof(cs_insn));
+
+//     jbyte* codeBytes = (*env)->GetByteArrayElements(env, code, NULL);
+
+//     cs_insn *insn = NULL; 
     
-    // size_t CAPSTONE_API cs_disasm(csh ud, const uint8_t *buffer, size_t size, uint64_t offset, size_t count, cs_insn **insn)
-    size_t actualCount = cs_disasm(handle, codeBytes, code_len, addr, 0, &insn);
-    // struct cs_struct *cs = (struct cs_struct *)(uintptr_t)handle;
+//     // size_t CAPSTONE_API cs_disasm(csh ud, const uint8_t *buffer, size_t size, uint64_t offset, size_t count, cs_insn **insn)
+//     size_t actualCount = cs_disasm(handle, codeBytes, code_len, addr, 0, &insn);
+//     // struct cs_struct *cs = (struct cs_struct *)(uintptr_t)handle;
 
-    if (!actualCount) {
-        PRINTF("ERROR: Failed to disasm given code!\n");
-        goto ERROR;
-    }
-    // goto ERROR;
+//     if (!actualCount) {
+//         PRINTF("ERROR: Failed to disasm given code!\n");
+//         goto ERROR;
+//     }
+//     // goto ERROR;
 
-    long j;
+//     long j;
 
-    // printf("Disasm (count %zd):\n", actualCount);
+//     // printf("Disasm (count %zd):\n", actualCount);
 
-    for (j = 0; j < actualCount; j++) {
-        cs_insn* ci = &insn[j];
-        PRINTF("%ld 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
-		#ifdef DEBUG
-        print_insn_detail(handle, CS_MODE_16, &insn[j]);
-		#endif
+//     for (j = 0; j < actualCount; j++) {
+//         cs_insn* ci = &insn[j];
+//         PRINTF("%ld 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
+// 		#ifdef DEBUG
+//         print_insn_detail(handle, CS_MODE_16, &insn[j]);
+// 		#endif
 
-        // The registers read and modified are not filled in by default. ci->detail->regs_read is only set by the 
-        // instruction ID, not the operands
-        cs_regs regs_read, regs_write;
-        uint8_t regs_read_count, regs_write_count;
+//         // The registers read and modified are not filled in by default. ci->detail->regs_read is only set by the 
+//         // instruction ID, not the operands
+//         cs_regs regs_read, regs_write;
+//         uint8_t regs_read_count, regs_write_count;
 
-        // Print out all registers accessed by this instruction (either implicit or explicit)
-        if (!cs_regs_access(chandle, ci, regs_read, &regs_read_count, regs_write, &regs_write_count)) {
-            if (regs_read_count) {
-                ci->detail->regs_read_count = regs_read_count;
-                memcpy(ci->detail->regs_read, regs_read, regs_read_count * sizeof(*regs_read));
-            }
+//         // Print out all registers accessed by this instruction (either implicit or explicit)
+//         if (!cs_regs_access(chandle, ci, regs_read, &regs_read_count, regs_write, &regs_write_count)) {
+//             if (regs_read_count) {
+//                 ci->detail->regs_read_count = regs_read_count;
+//                 memcpy(ci->detail->regs_read, regs_read, regs_read_count * sizeof(*regs_read));
+//             }
 
-            if (regs_write_count) {
-                ci->detail->regs_write_count = regs_write_count;
-                memcpy(ci->detail->regs_write, regs_write, regs_write_count * sizeof(*regs_write));
-            }
-        }
+//             if (regs_write_count) {
+//                 ci->detail->regs_write_count = regs_write_count;
+//                 memcpy(ci->detail->regs_write, regs_write, regs_write_count * sizeof(*regs_write));
+//             }
+//         }
 
-        //   Type Signature
-		//Java Type
-		//Z                boolean
-		//B                byte
-		//C                char
-		//S                short
-		//I                int
-		//J                long
-		//F                float
-		//D                double
-		//L fully - qualified - class;            fully - qualified - class
-		//[type                type[]
-		//(arg - types) ret - type                method type
-		//V is void return type, so you could have()V
+//         //   Type Signature
+// 		//Java Type
+// 		//Z                boolean
+// 		//B                byte
+// 		//C                char
+// 		//S                short
+// 		//I                int
+// 		//J                long
+// 		//F                float
+// 		//D                double
+// 		//L fully - qualified - class;            fully - qualified - class
+// 		//[type                type[]
+// 		//(arg - types) ret - type                method type
+// 		//V is void return type, so you could have()V
 
-        // Convert instruction
-        jstring    filename = NULL;
-        jboolean  returnValue = JNI_FALSE;
-        jobject    detailObject = NULL;
+//         // Convert instruction
+//         jstring    filename = NULL;
+//         jboolean  returnValue = JNI_FALSE;
+//         jobject    detailObject = NULL;
 
-        // jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
-        FINDCLASS(jclass_cs_insn, "capstone/Capstone$CsInsn")
-        GETMETHOD(constructor, jclass_cs_insn, "<init>", "(Lcapstone/Capstone;)V");
-        NEWOBJECT(csInsnObject, jclass_cs_insn, constructor, thisObj)
+//         // jclass_cs_insn = (*env)->FindClass(env, "capstone/Capstone$_cs_insn");
+//         FINDCLASS(jclass_cs_insn, "capstone/Capstone$CsInsn")
+//         GETMETHOD(constructor, jclass_cs_insn, "<init>", "(Lcapstone/Capstone;)V");
+//         NEWOBJECT(csInsnObject, jclass_cs_insn, constructor, thisObj)
 
-        (*env)->SetIntField(env, csInsnObject, field_insn_id, ci->id);
-        (*env)->SetLongField(env, csInsnObject, field_insn_address, ci->address);
-        (*env)->SetShortField(env, csInsnObject, field_insn_size, ci->size);
+//         (*env)->SetIntField(env, csInsnObject, field_insn_id, ci->id);
+//         (*env)->SetLongField(env, csInsnObject, field_insn_address, ci->address);
+//         (*env)->SetShortField(env, csInsnObject, field_insn_size, ci->size);
 
-        jbyteArray bytesArray = allocateJByteArray(env, ci->bytes, ci->size);
-        (*env)->SetObjectField(env, csInsnObject, field_insn_bytes, bytesArray);
+//         jbyteArray bytesArray = allocateJByteArray(env, ci->bytes, ci->size);
+//         (*env)->SetObjectField(env, csInsnObject, field_insn_bytes, bytesArray);
 
-        jstring mnem = (*env)->NewStringUTF(env, ci->mnemonic);
-        (*env)->SetObjectField(env, csInsnObject, field_insn_mnemonic, mnem);
+//         jstring mnem = (*env)->NewStringUTF(env, ci->mnemonic);
+//         (*env)->SetObjectField(env, csInsnObject, field_insn_mnemonic, mnem);
 
-        jstring ops = (*env)->NewStringUTF(env, ci->op_str);
-        (*env)->SetObjectField(env, csInsnObject, field_insn_op_str, ops);
-// continue;
-        if (0 && ci->detail) {
-            // Detail
-            // 
-            //public static  abstract class CsDetail {
-            //
-            // list of all implicit registers being read.
-            //public short[] regs_read = new short[16];
-            //public byte regs_read_count;
-            //// list of all implicit registers being written.
-            //public short[] regs_write = new short[20];
-            //public byte regs_write_count;
-            //// list of semantic groups this instruction belongs to.
-            //public byte[] groups = new byte[8];
-            //public byte groups_count;
-            //}
+//         jstring ops = (*env)->NewStringUTF(env, ci->op_str);
+//         (*env)->SetObjectField(env, csInsnObject, field_insn_op_str, ops);
+// // continue;
+//         if (0 && ci->detail) {
+//             // Detail
+//             // 
+//             //public static  abstract class CsDetail {
+//             //
+//             // list of all implicit registers being read.
+//             //public short[] regs_read = new short[16];
+//             //public byte regs_read_count;
+//             //// list of all implicit registers being written.
+//             //public short[] regs_write = new short[20];
+//             //public byte regs_write_count;
+//             //// list of semantic groups this instruction belongs to.
+//             //public byte[] groups = new byte[8];
+//             //public byte groups_count;
+//             //}
 
-            // public UnionArch arch;
-            switch (ud->arch) {
-            case CS_ARCH_X86: {
-                disasmX86Details(env, ud, ci, csInsnObject, field_insn_detail);
-                break;
-            }
-            default:
-                printf("Architecture %d is unsupported", ud->arch);
-                ;
-                // Unsupported
-            }
-        }
+//             // public UnionArch arch;
+//             switch (ud->arch) {
+//             case CS_ARCH_X86: {
+//                 disasmX86Details(env, ud, ci, csInsnObject, field_insn_detail);
+//                 break;
+//             }
+//             default:
+//                 printf("Architecture %d is unsupported", ud->arch);
+//                 ;
+//                 // Unsupported
+//             }
+//         }
 
-        // Add to ArrayList
-        (*env)->CallBooleanMethod(env, insnArray, method_array_add, csInsnObject);
-    }
+//         // Add to ArrayList
+//         (*env)->CallBooleanMethod(env, insnArray, method_array_add, csInsnObject);
+//     }
 
-ERROR:
-    // free memory allocated by cs_disasm()
-    if (insn) cs_free(insn, count);
+// ERROR:
+//     // free memory allocated by cs_disasm()
+//     if (insn) cs_free(insn, count);
 
-	PRINTF("Actual count %ld\n", actualCount);
-    return actualCount;
-}
+// 	PRINTF("Actual count %ld\n", actualCount);
+//     return actualCount;
+// }
 
 /*
 * Class:     capstone_Capstone
