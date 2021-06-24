@@ -45,6 +45,9 @@ public class TestX86 {
         // With list and global
         // Total time for 50000 took 362ms. Average was 0.00724ms.
 
+        // All globalized
+        // Total time for 50000 took 348ms. Average was 0.00696ms.
+        // Total time for 50000 took 294ms. Average was 0.00588ms.
 
         int TIMES = 50000 ; //50000;
         CsInsn ins = null;

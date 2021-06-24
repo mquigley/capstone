@@ -3,6 +3,8 @@ package capstone;
 import java.io.PrintStream;
 import java.util.ArrayList;
 
+import static capstone.X86_const.X86_GRP_INVALID;
+
 // MLQ - To build header files:
 // cd E:\dev\capstone_test\jni\src\capstone
 // javac -h . NativeLib.java
@@ -192,11 +194,18 @@ public class Capstone {
             outDetails(System.out);
         }
 
-        private void outDetails(PrintStream out) {
+        public void outDetails(PrintStream out) {
             out.println("ID: " + id + " Mnem: " + mnemonic + " Ops: " + op_str);
             out.printf("\t0x%x size: %d bytes: %s", address, size, Capstone.toString(bytes, size));
             if (cs_detail != null)
                 cs_detail.outDetails(out);
+        }
+
+        public String getGroupsText() {
+            if (cs_detail != null)
+                return cs_detail.getGroupsText();
+            else
+                return "";
         }
     }
 
@@ -215,6 +224,10 @@ public class Capstone {
         /** list of semantic groups this instruction belongs to. Warning: This is actually an unsigned byte, so one
          * should use {@code groups[i] & 0xFF} to convert to an integer. */
         public byte[] groups;
+        public int getGroup(int i) {
+            if (i >= 0 && i < groups.length) return groups[i] & 0xFF;
+            return X86_GRP_INVALID;
+        }
 
         public X86.X86Detail x86() { return (X86.X86Detail) this; }
 
@@ -233,12 +246,7 @@ public class Capstone {
                 regsWriteText.append(cs.regName(regs_write[i]));
             }
             regsWriteText.append("]");
-            StringBuilder groupsText = new StringBuilder("[");
-            for (int i = 0; i < groups.length; i++) {
-                if (i != 0) regsWriteText.append(", ");
-                groupsText.append(cs.groupName(groups[i] & 0xFF));
-            }
-            groupsText.append("]");
+            String groupsText = getGroupsText();
 
             return "\n_cs_detail{" +
                     "regs_read=" + regsReadText +
@@ -248,6 +256,17 @@ public class Capstone {
                     ", groups=" + groupsText +
                     ", groups_count=" + groups.length +
                     '}';
+        }
+
+        public String getGroupsText() {
+            Capstone cs = parent.cs;
+            StringBuilder groupsText = new StringBuilder("[");
+            for (int i = 0; i < groups.length; i++) {
+                if (i != 0) groupsText.append(", ");
+                groupsText.append(cs.groupName(groups[i] & 0xFF));
+            }
+            groupsText.append("]");
+            return groupsText.toString();
         }
 
         public void outDetails(PrintStream out) {

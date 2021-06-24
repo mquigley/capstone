@@ -3,8 +3,10 @@
   <component name="ChangeListManager">
     <list default="true" id="5d4ac8ec-7709-4939-80f9-479805fccb53" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/capstonejni.jar" beforeDir="false" afterPath="$PROJECT_DIR$/bin/capstonejni.jar" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/bin/libcapstonejni.jnilib" beforeDir="false" afterPath="$PROJECT_DIR$/bin/libcapstonejni.jnilib" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/jnic/capstone_jni.c" beforeDir="false" afterPath="$PROJECT_DIR$/jnic/capstone_jni.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main/src/capstone/Capstone.java" beforeDir="false" afterPath="$PROJECT_DIR$/main/src/capstone/Capstone.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test/src/TestX86.java" beforeDir="false" afterPath="$PROJECT_DIR$/test/src/TestX86.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

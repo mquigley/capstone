@@ -571,6 +571,22 @@ jfieldID field_dispOffset;
 jfieldID field_dispSize;
 jfieldID field_immOffset;
 jfieldID field_immSize;
+jmethodID x86op_constructor;
+jfieldID field_x86op_type;
+jfieldID field_x86op_reg;
+jfieldID field_x86op_imm;
+jfieldID field_x86op_mem;
+jfieldID field_x86op_size;
+jfieldID field_x86op_access;
+jfieldID field_x86op_avx_bcast;
+jfieldID field_x86op_avx_zero_opmask;
+
+jmethodID x86Mem_constructor;
+jfieldID field_x86op_segment;
+jfieldID field_x86op_base;
+jfieldID field_x86op_index; 
+jfieldID field_x86op_scale; 
+jfieldID field_x86op_disp;
 
 
 /*
@@ -635,14 +651,12 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
 	GETFIELDONCE(field_insn_mnemonic, jclass_csinsn, "mnemonic", "Ljava/lang/String;")
 	GETFIELDONCE(field_insn_op_str, jclass_csinsn, "op_str", "Ljava/lang/String;")
 	GETFIELDONCE(field_insn_detail, jclass_csinsn, "cs_detail", "Lcapstone/Capstone$CsDetail;")
-
 	GETMETHODONCE(method_insn_ctor, jclass_csinsn, "<init>", "(Lcapstone/Capstone;)V");
 
     FINDCLASS(jclass_cs_detail, "capstone/Capstone$CsDetail");
     GETFIELDONCE(field_d_regs_read, jclass_cs_detail, "regs_read", "[S");
     GETFIELDONCE(field_d_regs_write, jclass_cs_detail, "regs_write", "[S");
     GETFIELDONCE(field_d_groups, jclass_cs_detail, "groups", "[B");
-
 
     FINDCLASS(jclass_x86, "capstone/X86$X86Detail");
     GETMETHODONCE(x86_constructor, jclass_x86, "<init>", "(Lcapstone/Capstone$CsInsn;)V");
@@ -668,6 +682,26 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1open
     GETFIELDONCE(field_dispSize, jclass_x86, "dispSize", "B");
     GETFIELDONCE(field_immOffset, jclass_x86, "immOffset", "B");
     GETFIELDONCE(field_immSize, jclass_x86, "immSize", "B");
+
+    FINDCLASS(jclass_operand, "capstone/X86$Operand");
+    GETMETHODONCE(x86op_constructor, jclass_operand, "<init>", "()V");
+    GETFIELDONCE(field_x86op_type, jclass_operand, "type", "I");
+    GETFIELDONCE(field_x86op_reg, jclass_operand, "reg", "I");
+    GETFIELDONCE(field_x86op_imm, jclass_operand, "imm", "J");
+    GETFIELDONCE(field_x86op_mem, jclass_operand, "mem", "Lcapstone/X86$OperandMem;");
+    GETFIELDONCE(field_x86op_size, jclass_operand, "size", "B");
+    GETFIELDONCE(field_x86op_access, jclass_operand, "access", "B");
+    GETFIELDONCE(field_x86op_avx_bcast, jclass_operand, "avx_bcast", "I");
+    GETFIELDONCE(field_x86op_avx_zero_opmask, jclass_operand, "avx_zero_opmask", "Z");
+
+	FINDCLASS(jclass_operand_mem, "capstone/X86$OperandMem");
+	GETMETHODONCE(x86Mem_constructor, jclass_operand_mem, "<init>", "()V");
+	GETFIELDONCE(field_x86op_segment, jclass_operand_mem, "segment", "I");
+	GETFIELDONCE(field_x86op_base, jclass_operand_mem, "base", "I");
+	GETFIELDONCE(field_x86op_index, jclass_operand_mem, "index", "I");
+	GETFIELDONCE(field_x86op_scale, jclass_operand_mem, "scale", "I");
+	GETFIELDONCE(field_x86op_disp, jclass_operand_mem, "disp", "J");
+
 
 	FINDCLASS(class_arrayList, "java/util/ArrayList");
 	method_array_add = (*env)->GetMethodID(env, class_arrayList, "add", "(Ljava/lang/Object;)Z");
@@ -833,38 +867,13 @@ void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject cs
     (*env)->SetByteField(env, x86InsnObject, field_avx_sae, x86->avx_sae);
     (*env)->SetIntField(env, x86InsnObject, field_avx_rm, x86->avx_rm);
     (*env)->SetLongField(env, x86InsnObject, field_eflags, x86->eflags);
-    // (*env)->SetByteField(env, x86InsnObject, field_op_count, x86->op_count);
     (*env)->SetByteField(env, x86InsnObject, field_modrmOffset, x86->encoding.modrm_offset);
     (*env)->SetByteField(env, x86InsnObject, field_dispOffset, x86->encoding.disp_offset);
     (*env)->SetByteField(env, x86InsnObject, field_dispSize, x86->encoding.disp_size);
     (*env)->SetByteField(env, x86InsnObject, field_immOffset, x86->encoding.imm_offset);
     (*env)->SetByteField(env, x86InsnObject, field_immSize, x86->encoding.imm_size);
 
-    /*
-        public int type;
-
-        // Union: Only 1 of 3 are valid:
-        public int reg;
-        public long imm;
-        public OperandMem mem;
-        //
-
-        public byte size;
-        public byte access;
-        public int avx_bcast;
-        public boolean avx_zero_opmask;
-        */
     FINDCLASS(jclass_operand, "capstone/X86$Operand");
-    GETMETHOD(operandConstructor, jclass_operand, "<init>", "()V");
-
-    GETFIELD(field_x86op_type, jclass_operand, "type", "I");
-    GETFIELD(field_x86op_reg, jclass_operand, "reg", "I");
-    GETFIELD(field_x86op_imm, jclass_operand, "imm", "J");
-    GETFIELD(field_x86op_mem, jclass_operand, "mem", "Lcapstone/X86$OperandMem;");
-    GETFIELD(field_x86op_size, jclass_operand, "size", "B");
-    GETFIELD(field_x86op_access, jclass_operand, "access", "B");
-    GETFIELD(field_x86op_avx_bcast, jclass_operand, "avx_bcast", "I");
-    GETFIELD(field_x86op_avx_zero_opmask, jclass_operand, "avx_zero_opmask", "Z");
 
     // Allocate the operands array
     jobjectArray operandArray = (*env)->NewObjectArray(env, x86->op_count, jclass_operand, NULL);
@@ -872,7 +881,7 @@ void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject cs
 
     for (int i = 0; i < x86->op_count; i++) {
 		cs_x86_op* op = &x86->operands[i];
-		jobject operand = (*env)->NewObject(env, jclass_operand, operandConstructor);
+		jobject operand = (*env)->NewObject(env, jclass_operand, x86op_constructor);
 		(*env)->SetObjectArrayElement(env, operandArray, i, operand);
 
 		(*env)->SetIntField(env, operand, field_x86op_type, op->type);
@@ -890,18 +899,8 @@ void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject cs
 				break;
 			case X86_OP_MEM: {
 				FINDCLASS(jclass_operand_mem, "capstone/X86$OperandMem");
-				GETMETHOD(opMemconstructor, jclass_operand_mem, "<init>", "()V");
-
-				jobject opmem = (*env)->NewObject(env, jclass_operand_mem, opMemconstructor);
-				// NEWOBJECT(opmem, jclass_operand_mem, opMemconstructor);
-				// 
+				jobject opmem = (*env)->NewObject(env, jclass_operand_mem, x86Mem_constructor);
 				(*env)->SetObjectField(env, operand, field_x86op_mem, opmem);
-
-				GETFIELD(field_x86op_segment, jclass_operand_mem, "segment", "I");
-				GETFIELD(field_x86op_base, jclass_operand_mem, "base", "I");
-				GETFIELD(field_x86op_index, jclass_operand_mem, "index", "I");
-				GETFIELD(field_x86op_scale, jclass_operand_mem, "scale", "I");
-				GETFIELD(field_x86op_disp, jclass_operand_mem, "disp", "J");
 
 				(*env)->SetIntField(env, opmem, field_x86op_segment, op->mem.segment);
 				(*env)->SetIntField(env, opmem, field_x86op_base, op->mem.base);
