@@ -1,6 +1,8 @@
 
 #include "capstone_Capstone.h"
 
+// $(SolutionDir)..\bindings\jni\bin\$(Platform)\$(Configuration)\
+
 
 #include "../../../include/capstone/capstone.h"
 #include "../../../include/capstone/platform.h"
@@ -832,9 +834,6 @@ void disasmDetails(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jclass jclass
     (*env)->SetShortArrayRegion(env, regsReadArray, 0, ci->detail->regs_read_count, ci->detail->regs_read);
     (*env)->SetShortArrayRegion(env, regsWriteArray, 0, ci->detail->regs_write_count, ci->detail->regs_write);
     (*env)->SetByteArrayRegion(env, groupsArray, 0, ci->detail->groups_count, ci->detail->groups);
-
-ERROR:
-    ;
 }
 
 void disasmX86Details(JNIEnv* env, struct cs_struct* cs, cs_insn* ci, jobject csInsnObject, jfieldID field_insnObject_detail) {

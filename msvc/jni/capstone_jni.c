@@ -902,22 +902,19 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
 	goto ERROR;
     }
 
-    long j;
-
     printf("****************\n");
     printf("Disasm (count %zd):\n", actualCount);
 
-    for (j = 0; j < actualCount; j++) {
+    for (long j = 0; j < actualCount; j++) {
 	cs_insn* ci = &insn[j];
 	printf("%d 0x%" PRIx64 ":\t%s\t%s\n", j, insn[j].address, insn[j].mnemonic, insn[j].op_str);
 	print_insn_detail(handle, CS_MODE_16, &insn[j]);
 
 	// The registers read and modified are not filled in by default. ci->detail->regs_read is only set by the 
-	// instruction ID, not the operands
+	// instruction ID, not the operands.
 	cs_regs regs_read, regs_write;
 	uint8_t regs_read_count, regs_write_count;
 
-	// Print out all registers accessed by this instruction (either implicit or explicit)
 	if (!cs_regs_access(chandle, ci, regs_read, &regs_read_count, regs_write, &regs_write_count)) {
 	    if (regs_read_count) {
 		ci->detail->regs_read_count = regs_read_count;
@@ -1014,10 +1011,8 @@ JNIEXPORT jlong JNICALL Java_capstone_Capstone_cs_1disasm
 	}
 
 	// Add to ArrayList
-	printf("adding\n");
 	jclass arrayList = (*env)->FindClass(env, "Ljava/util/ArrayList;");
 	jmethodID array_add = (*env)->GetMethodID(env, arrayList, "add", "(Ljava/lang/Object;)Z");
-	// printf("Arraylist class %p add method %p\n", arrayList, array_add);
 	(*env)->CallBooleanMethod(env, insnArray, array_add, csInsnObject);
 
 
@@ -1043,8 +1038,7 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1close
 (JNIEnv *env, jobject thisObj, jlong handle)
 {
     printf("Called close with handle 0x%llx...\n", handle);
-    cs_close(&handle);
-    return 0;
+    return cs_close(&handle);
 }
 
 /*
@@ -1055,8 +1049,7 @@ JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1close
 JNIEXPORT jint JNICALL Java_capstone_Capstone_cs_1option
 (JNIEnv * env, jobject thisObj, jlong handle, jint option, jlong optionValue)
 {
-    printf("Called options...");
+    printf("Called options 0x%llx %d %lld\n", handle, option, optionValue);
     struct cs_struct* ud = (cs_struct*)handle;
-
-    return 0;
+    return cs_option(handle, option, optionValue);
 }

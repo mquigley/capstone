@@ -15,12 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="capstone_Capstone.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\bindings\jni\jnic\capstone_Capstone.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="capstone_jni.c">
+    <ClCompile Include="..\..\bindings\jni\jnic\capstone_jni.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

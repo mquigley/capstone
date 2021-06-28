@@ -39,7 +39,7 @@ public class Capstone {
     native public int cs_close(long handle);
     native public int cs_option(long handle, int option, long optionValue);
 
-    native public String cs_reg_name(long csh, int id);
+    native public String cs_reg_name(long handle, int id);
     native public String cs_insn_name (long handle, int id);
     native public String cs_group_name(long handle, int id);
 
@@ -52,7 +52,7 @@ public class Capstone {
 //    native public byte cs_reg_read(long csh, PointerToInsn insn, int id);
 //    native public byte cs_reg_write(long csh, PointerToInsn insn, int id);
 
-    native public int cs_errno(long csh);
+    native public int cs_errno(long handle);
     native public int cs_version(IntByReference major, IntByReference minor);
 
     // This method should be unnecessary; we support it all
